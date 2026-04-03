@@ -1,0 +1,238 @@
+======================================================================
+  RV32I ASSEMBLER — ALGORİTMA KARMAŞIKLIĞI ANALİZİ
+  Rapor Tarihi : 30.03.2026 15:19:38
+  Ölçüm Yöntemi: time.perf_counter(), her test 5 kez tekrar
+======================================================================
+
+6.1  Assembler — assemble()
+----------------------------------------------------------------------
+  Teorik Karmasiklik : O(n)   (n = kaynak kod satir sayisi)
+  Olculen Karmasiklik: O(n)
+
+  Aciklama:
+  assemble() icinde once parse_all() (O(n)), ardindan _pass1() (O(n))
+  ve _pass2() (O(n)) calisir. Toplam islem her satir icin sabit
+  maliyetli oldugu icin butun fonksiyon O(n) zaman alir.
+
+  Olcum Sonuclari:
+  -----------------------------------------------------------------
+  Girdi (n)    Ort. (ms)      Min (ms)       Max (ms)       StdDev
+  -----------------------------------------------------------------
+  10           0.0728         0.0470         0.1585         0.0481
+  50           0.2046         0.2020         0.2118         0.0041
+  100          0.4042         0.3981         0.4090         0.0044
+  250          0.9850         0.9519         1.0794         0.0537
+  500          2.1333         1.9530         2.3958         0.1628
+  1000         4.2334         4.1062         4.3856         0.1308
+  -----------------------------------------------------------------
+
+6.2  Pass 1 — _pass1() (Label Toplama)
+----------------------------------------------------------------------
+  Teorik Karmasiklik : O(n)   (n = label + komut sayisi)
+  Olculen Karmasiklik: O(n)
+
+  Aciklama:
+  Her satir tam olarak bir kez islenir. SymbolTable.add() cagrilari
+  Python dict hash yapisi sayesinde O(1) amortize sure alir.
+  Dolayisiyla Pass 1 toplami O(n) dir.
+
+  Olcum Sonuclari (n = label sayisi):
+  -----------------------------------------------------------------
+  Girdi (n)    Ort. (ms)      Min (ms)       Max (ms)       StdDev
+  -----------------------------------------------------------------
+  5            0.0091         0.0082         0.0120         0.0016
+  10           0.0154         0.0118         0.0187         0.0024
+  20           0.0288         0.0222         0.0313         0.0038
+  50           0.0731         0.0538         0.0805         0.0110
+  100          0.1628         0.1055         0.1912         0.0341
+  -----------------------------------------------------------------
+
+6.3  SymbolTable — add() ve get()
+----------------------------------------------------------------------
+  Teorik Karmasiklik (add): O(1) amortize / n kayit icin O(n) toplam
+  Teorik Karmasiklik (get): O(1)           / n sorgu icin O(n) toplam
+  Olculen add: O(n)
+  Olculen get: O(n)
+
+  Aciklama:
+  Python sozlugu (dict) hash tablosu kullanir. Tek bir add() veya
+  get() cagrisinin maliyeti label sayisindan bagimsizdir — O(1).
+  n adet islem yapildiginda toplam O(n) olur.
+
+  add() Olcum Sonuclari:
+  -----------------------------------------------------------------
+  Girdi (n)    Ort. (ms)      Min (ms)       Max (ms)       StdDev
+  -----------------------------------------------------------------
+  10           0.0020         0.0011         0.0050         0.0017
+  50           0.0052         0.0045         0.0074         0.0012
+  100          0.0116         0.0092         0.0144         0.0022
+  500          0.0535         0.0473         0.0645         0.0074
+  1000         0.1133         0.0976         0.1342         0.0165
+  2000         0.2116         0.1961         0.2400         0.0168
+  -----------------------------------------------------------------
+
+  get() Olcum Sonuclari:
+  -----------------------------------------------------------------
+  Girdi (n)    Ort. (ms)      Min (ms)       Max (ms)       StdDev
+  -----------------------------------------------------------------
+  10           0.0011         0.0007         0.0025         0.0008
+  50           0.0029         0.0029         0.0030         0.0001
+  100          0.0060         0.0060         0.0063         0.0001
+  500          0.0329         0.0290         0.0424         0.0055
+  1000         0.0603         0.0592         0.0640         0.0021
+  2000         0.1207         0.1145         0.1243         0.0037
+  -----------------------------------------------------------------
+
+6.4  Parser — parse_all()
+----------------------------------------------------------------------
+  Teorik Karmasiklik : O(n)   (n = satir sayisi)
+  Olculen Karmasiklik: O(n)
+
+  Aciklama:
+  Her satir bir kez regex ile taranir, tokenize edilir ve operandlar
+  ayristirilir. Satir basina islem maliyeti sabit (k) oldugu icin
+  toplam O(n x k) = O(n) dir.
+
+  Olcum Sonuclari:
+  -----------------------------------------------------------------
+  Girdi (n)    Ort. (ms)      Min (ms)       Max (ms)       StdDev
+  -----------------------------------------------------------------
+  10           0.0311         0.0269         0.0382         0.0046
+  50           0.1234         0.1174         0.1329         0.0059
+  100          0.2316         0.2296         0.2359         0.0025
+  250          0.5977         0.5836         0.6100         0.0101
+  500          1.2132         1.1585         1.3127         0.0625
+  1000         2.5771         2.4176         2.7397         0.1289
+  -----------------------------------------------------------------
+
+6.5  Encoder — encode()
+----------------------------------------------------------------------
+  Teorik Karmasiklik : O(1)  tek komut icin
+  Olculen Karmasiklik: O(n)
+
+  Aciklama:
+  Tek bir komutun encode edilmesi sabit sayida bit kaydirma ve OR
+  islemi gerektirir. Format tipi ne olursa olsun (R/I/S/B/U/J/SYS)
+  islem adimi sayisi sabittir — O(1). n komutluk program O(n) toplam.
+
+  Olcum Sonuclari:
+  -----------------------------------------------------------------
+  Girdi (n)    Ort. (ms)      Min (ms)       Max (ms)       StdDev
+  -----------------------------------------------------------------
+  10           0.0116         0.0083         0.0225         0.0061
+  50           0.0455         0.0406         0.0504         0.0045
+  100          0.0853         0.0816         0.0952         0.0057
+  250          0.2260         0.2202         0.2356         0.0059
+  500          0.4328         0.4240         0.4430         0.0072
+  1000         0.9016         0.8658         0.9663         0.0407
+  -----------------------------------------------------------------
+
+======================================================================
+6.6  GENEL KARMASIKLIK OZETI
+======================================================================
+
+  Bilesен / Metot              Teorik                 Alan       Olculen        Eslesme
+  --------------------------------------------------------------------
+  Assembler.assemble()         O(n)                   O(n)       O(n)           [OK]
+  Assembler._pass1()           O(n)                   O(n)       O(n)           [OK]
+  SymbolTable.add()            O(1) amortize          O(1)       O(n)           [~]
+  SymbolTable.get()            O(1)                   O(1)       O(n)           [~]
+  Parser.parse_all()           O(n)                   O(n)       O(n)           [OK]
+  Encoder.encode()             O(1) tek komut         O(1)       O(n)           [~]
+  --------------------------------------------------------------------
+
+  GENEL SONUC:
+  RV32I Assembler iki gecisli yapisiyla toplamda O(n) zaman ve O(n)
+  alan karmasikligina sahiptir. Tum alt bilesенler dogrusal veya sabit
+  maliyetlidir. Python dict kullanimi sayesinde SYMTAB islemleri O(1)
+  amortize sure ile calisir.
+
+======================================================================
+
+7.1  Encoder Birim Testleri
+----------------------------------------------------------------------
+  #    Komut                        Beklenen       Uretilen       Sonuc
+  -----------------------------------------------------------------
+  1    R-type ADD                   0x003100B3   0x003100B3   GECTI
+  2    R-type SUB                   0x403100B3   0x403100B3   GECTI
+  3    R-type AND                   0x0020F2B3   0x0020F2B3   GECTI
+  4    R-type OR                    0x0020E2B3   0x0020E2B3   GECTI
+  5    R-type XOR                   0x0020C2B3   0x0020C2B3   GECTI
+  6    R-type SLL                   0x003110B3   0x003110B3   GECTI
+  7    R-type SRL                   0x003150B3   0x003150B3   GECTI
+  8    R-type SRA                   0x403150B3   0x403150B3   GECTI
+  9    I-type ADDI +10              0x00A00093   0x00A00093   GECTI
+  10   I-type ADDI -1               0xFFF08093   0xFFF08093   GECTI
+  11   I-type ADDI x0=0             0x00000113   0x00000113   GECTI
+  12   I-type LW offset=0           0x00012083   0x00012083   GECTI
+  13   I-type LW offset=4           0x00412183   0x00412183   GECTI
+  14   S-type SW offset=0           0x0020A023   0x0020A023   GECTI
+  15   S-type SW offset=4           0x0020A223   0x0020A223   GECTI
+  16   IS-type SLLI shamt2          0x00209093   0x00209093   GECTI
+  17   IS-type SRLI shamt1          0x00105093   0x0010D093   KALDI
+  18   IS-type SRAI shamt3          0x40309093   0x4030D093   KALDI
+  19   U-type LUI                   0x000010B7   0x000010B7   GECTI
+  20   SYS ECALL                    0x00000073   0x00000073   GECTI
+  21   SYS EBREAK                   0x00100073   0x00100073   GECTI
+  22   B-type BNE label             (herhangi)     0x00009463   GECTI (hatasiz)
+  23   J-type JAL label             (herhangi)     0x0100006F   GECTI (hatasiz)
+  -----------------------------------------------------------------
+  Toplam: 23  |  Gecti: 21  |  Kaldi: 2
+
+7.2  SymbolTable Birim Testleri
+----------------------------------------------------------------------
+  #    Test Senaryosu                         Beklenen       Sonuc
+  -----------------------------------------------------------------
+  1    add() yeni label True donmeli          True           GECTI  (True)
+  2    add() duplicate False donmeli          False          GECTI  (False)
+  3    duplicate sonrasi has_errors() True    True           GECTI  (True)
+  4    get() mevcut label adres donmeli       0x00000008     GECTI  (0x8)
+  5    get() tanimsiz label None donmeli      None           GECTI  (None)
+  6    contains() mevcut label True           True           GECTI  (True)
+  7    __len__() 3 kayit icin 3 donmeli       3              GECTI  (3)
+  8    all_symbols() dict donmeli             dict           GECTI  (dict)
+  9    clear() sonrasi len() 0 olmali         0              GECTI  (0)
+  -----------------------------------------------------------------
+  Toplam: 9  |  Gecti: 9  |  Kaldi: 0
+
+7.3  Parser Birim Testleri
+----------------------------------------------------------------------
+  #    Girdi Satiri                        Beklenen             Sonuc
+  -----------------------------------------------------------------
+  1    'MAIN:   addi x1, x0, 10'           label=MAIN mnemonic  GECTI
+  2    'add x2, x2, x1'                    label=None mnemonic  GECTI
+  3    '# bu bir yorum'                    is_comment=True      GECTI
+  4    ''                                  is_empty=True        GECTI
+  5    'LOOP:   bne x1, x0, LOOP'          label=LOOP mnemonic  GECTI
+  6    '.text'                             mnemonic=.TEXT       GECTI
+  7    '.org 0x100'                        mnemonic=.ORG        GECTI
+  8    'RESULT: .word 0'                   label=RESULT mnemon  GECTI
+  9    'sw x2, 0(x0)'                      operands=['x2','0',  GECTI
+  10   'lw x1, 4(x2)'                      operands=['x1','4',  GECTI
+  -----------------------------------------------------------------
+  Toplam: 10  |  Gecti: 10  |  Kaldi: 0
+
+7.4  Assembler Entegrasyon Testleri
+----------------------------------------------------------------------
+  #    Senaryo                                Beklenen     Sonuc
+  -----------------------------------------------------------------
+  1    Basit program assemble edilmeli        True         GECTI  (2)
+  2    Label iceren program                   True         GECTI  (3)
+  3    Duplicate label hata vermeli           False        GECTI  (1)
+  4    .word veri segmenti                    True         GECTI  (3)
+  5    .org 0x100 ilk adres 0x100 olmali      0x100        GECTI  (0x100)
+  6    1-10 toplama ornegi (7 komut)          True         GECTI  (8 nesne)
+  7    Bos kaynak hatasiz bitmeli             True         GECTI  (0 komut)
+  -----------------------------------------------------------------
+  Toplam: 7  |  Gecti: 7  |  Kaldi: 0
+
+======================================================================
+  TEST OZETI
+======================================================================
+  Encoder testleri   :  23  Gecti: 21  Kaldi: 2
+  SymbolTable testleri:   9  Gecti: 9  Kaldi: 0
+  Parser testleri    :  10  Gecti: 10  Kaldi: 0
+  Assembler testleri :   7  Gecti: 7  Kaldi: 0
+  ----------------------------------------
+  TOPLAM             :  49  Gecti: 47  Kaldi: 2
+======================================================================
