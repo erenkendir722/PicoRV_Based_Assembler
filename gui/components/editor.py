@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from gui.highlighter import Highlighter
 from gui.theme import Theme
+from core import Assembler
 
 class EditorPanel:
     def __init__(self, parent):
@@ -48,6 +49,9 @@ class EditorPanel:
         self._editor.config(xscrollcommand=scroll_x.set)
 
         self._highlighter = Highlighter(self._editor)
+        self._editor.tag_configure("error", underline=True, underlinefg="red", background="#4a1c1c")
+
+        self._lint_timer = None
 
         self._editor.bind('<KeyRelease>', self._on_key_release)
         self._editor.bind('<MouseWheel>', self._on_mousewheel)
@@ -68,6 +72,27 @@ class EditorPanel:
     def _on_key_release(self, _event=None):
         self.update_line_numbers()
         self._highlighter.apply()
+        
+        if self._lint_timer is not None:
+            self.frame.after_cancel(self._lint_timer)
+        self._lint_timer = self.frame.after(400, self._lint_code)
+
+    def _lint_code(self):
+        source = self.get_code()
+        self._editor.tag_remove("error", "1.0", tk.END)
+        if not source.strip():
+            return
+            
+        asm = Assembler()
+        asm.assemble(source)
+        for err in asm.errors:
+            if err.startswith("Satır "):
+                parts = err.split(":", 1)
+                try:
+                    line_no = int(parts[0].replace("Satır ", "").strip())
+                    self._editor.tag_add("error", f"{line_no}.0", f"{line_no}.end")
+                except ValueError:
+                    pass
 
     def _sync_scroll(self, *args):
         self._editor.yview(*args)
