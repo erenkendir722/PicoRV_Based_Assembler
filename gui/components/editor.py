@@ -3,6 +3,7 @@ from tkinter import ttk
 from gui.highlighter import Highlighter
 from gui.theme import Theme
 from core import Assembler
+from gui.components.autocomplete import AutocompleteHelper
 
 class EditorPanel:
     def __init__(self, parent):
@@ -56,6 +57,61 @@ class EditorPanel:
         self._editor.bind('<KeyRelease>', self._on_key_release)
         self._editor.bind('<MouseWheel>', self._on_mousewheel)
 
+        self.autocompleter = AutocompleteHelper(self._editor, self.frame, self._on_manual_completion)
+        
+        # Soft-Tab & Auto-Indent Behaviors
+        self._editor.bind('<Tab>', self._on_editor_tab, add='+')
+        self._editor.bind('<Return>', self._on_editor_return, add='+')
+        self._editor.bind('<BackSpace>', self._on_editor_backspace, add='+')
+
+    def _on_editor_backspace(self, event):
+        if self._editor.tag_ranges(tk.SEL):
+            return None
+            
+        index = self._editor.index(tk.INSERT)
+        line, col = index.split('.')
+        
+        if int(col) == 0:
+            return None
+            
+        text_before = self._editor.get(f"{line}.0", index)
+        # Eğer satır tamamen boşluklardan oluşuyorsa tek silmede hepsini temizle
+        if text_before and text_before.strip() == "":
+            self._editor.delete(f"{line}.0", index)
+            self.update_line_numbers()
+            self._highlighter.apply()
+            return "break"
+            
+        # Eğer normal kod yazılıyken arkasında 4 boşluk (soft tab) varsa, tekte 4 sil
+        if text_before.endswith("    "):
+            self._editor.delete(f"{index} - 4 chars", index)
+            self.update_line_numbers()
+            self._highlighter.apply()
+            return "break"
+            
+        return None
+
+    def _on_editor_tab(self, event):
+        self._editor.insert(tk.INSERT, "    ")
+        return "break"
+
+    def _on_editor_return(self, event):
+        index = self._editor.index(tk.INSERT)
+        line, _ = index.split('.')
+        line_text = self._editor.get(f"{line}.0", f"{line}.end")
+        
+        indent = ""
+        for char in line_text:
+            if char in (" ", "\t"):
+                indent += char
+            else:
+                break
+                
+        self._editor.insert(tk.INSERT, "\n" + indent)
+        self.update_line_numbers()
+        self._highlighter.apply()
+        return "break"
+
     def get_code(self):
         return self._editor.get("1.0", tk.END)
 
@@ -69,6 +125,13 @@ class EditorPanel:
         self._editor.delete("1.0", tk.END)
         self.update_line_numbers()
 
+    def _on_manual_completion(self):
+        self.update_line_numbers()
+        self._highlighter.apply()
+        if self._lint_timer is not None:
+            self.frame.after_cancel(self._lint_timer)
+        self._lint_timer = self.frame.after(10, self._lint_code)
+
     def _on_key_release(self, _event=None):
         self.update_line_numbers()
         self._highlighter.apply()
@@ -76,6 +139,13 @@ class EditorPanel:
         if self._lint_timer is not None:
             self.frame.after_cancel(self._lint_timer)
         self._lint_timer = self.frame.after(400, self._lint_code)
+
+        if _event and _event.keysym in ('Up', 'Down', 'Return', 'Tab', 'Escape', 'Shift_L', 'Shift_R'):
+            if _event.keysym == 'Escape':
+                self.autocompleter.hide_popup()
+            return
+            
+        self.autocompleter.check_autocomplete()
 
     def _lint_code(self):
         source = self.get_code()
@@ -100,7 +170,6 @@ class EditorPanel:
 
     def _on_mousewheel(self, event):
         units = int(-1 * (event.delta / 120))
-        # Handle platform-specific scrolling correctly
         if hasattr(event, 'delta') and event.delta != 0:
             self._editor.yview_scroll(units, "units")
             self._line_nums.yview_scroll(units, "units")
