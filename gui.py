@@ -6,6 +6,32 @@ from tkinter import ttk, filedialog, messagebox, font
 from assembler import Assembler
 
 
+def _make_btn(parent, text, command, bg, fg, hover_bg, font_cfg, padx=14, pady=6):
+    """macOS'ta tk.Button renkleri çalışmadığı için Label tabanlı custom buton."""
+    frame = tk.Frame(parent, bg=bg, cursor="hand2")
+    lbl = tk.Label(frame, text=text, bg=bg, fg=fg,
+                   font=font_cfg, padx=padx, pady=pady, cursor="hand2")
+    lbl.pack()
+
+    def on_enter(_):
+        frame.config(bg=hover_bg)
+        lbl.config(bg=hover_bg)
+
+    def on_leave(_):
+        frame.config(bg=bg)
+        lbl.config(bg=bg)
+
+    def on_click(_):
+        command()
+
+    for widget in (frame, lbl):
+        widget.bind("<Enter>", on_enter)
+        widget.bind("<Leave>", on_leave)
+        widget.bind("<Button-1>", on_click)
+
+    return frame
+
+
 class RV32IAssemblerGUI:
 
     # ─────────────────────────────────────────
@@ -77,30 +103,21 @@ class RV32IAssemblerGUI:
         toolbar.pack(fill=tk.X)
         toolbar.pack_propagate(False)
 
-        btn_cfg = dict(bg=self.ACCENT, fg="#FFFFFF",
-                       font=("Consolas", 10, "bold"),
-                       relief=tk.FLAT, padx=16, pady=6,
-                       activebackground=self.ACCENT2,
-                       cursor="hand2")
-
-        self._btn_assemble = tk.Button(toolbar, text="▶  Assemble",
-                                       command=self._on_assemble, **btn_cfg)
+        self._btn_assemble = _make_btn(
+            toolbar, "▶  Assemble", self._on_assemble,
+            bg=self.ACCENT, fg="#FFFFFF", hover_bg="#C5602A",
+            font_cfg=("Consolas", 10, "bold"), padx=16, pady=6)
         self._btn_assemble.pack(side=tk.LEFT, padx=(10, 4), pady=8)
 
-        sec_cfg = dict(bg=self.BG3, fg=self.FG,
-                       font=("Consolas", 10),
-                       relief=tk.FLAT, padx=14, pady=6,
-                       activebackground=self.BORDER,
-                       cursor="hand2")
-
-        tk.Button(toolbar, text="📂 Aç",
-                  command=self._open_file, **sec_cfg).pack(side=tk.LEFT, padx=4, pady=8)
-        tk.Button(toolbar, text="💾 Kaydet",
-                  command=self._save_file, **sec_cfg).pack(side=tk.LEFT, padx=4, pady=8)
-        tk.Button(toolbar, text="🗑  Temizle",
-                  command=self._clear_all, **sec_cfg).pack(side=tk.LEFT, padx=4, pady=8)
-        tk.Button(toolbar, text="📋 Örnek Kod",
-                  command=self._insert_sample, **sec_cfg).pack(side=tk.LEFT, padx=4, pady=8)
+        for text, cmd in [
+            ("📂 Aç",       self._open_file),
+            ("💾 Kaydet",   self._save_file),
+            ("🗑  Temizle", self._clear_all),
+            ("📋 Örnek Kod", self._insert_sample),
+        ]:
+            _make_btn(toolbar, text, cmd,
+                      bg=self.BG3, fg=self.FG, hover_bg="#4A4A6A",
+                      font_cfg=("Consolas", 10)).pack(side=tk.LEFT, padx=4, pady=8)
 
         # Sağda bilgi etiketi
         self._status_lbl = tk.Label(toolbar, text="Hazır",
@@ -248,11 +265,9 @@ class RV32IAssemblerGUI:
         tk.Label(header, text=" 🖥  Konsol / Hatalar",
                  bg=self.BG3, fg=self.ACCENT2,
                  font=("Consolas", 10, "bold")).pack(side=tk.LEFT, padx=8, pady=4)
-        tk.Button(header, text="Temizle",
-                  bg=self.BG3, fg=self.FG2,
-                  font=("Consolas", 9), relief=tk.FLAT,
-                  command=self._clear_console,
-                  cursor="hand2").pack(side=tk.RIGHT, padx=8)
+        _make_btn(header, "Temizle", self._clear_console,
+                  bg=self.BG3, fg=self.FG2, hover_bg="#4A4A6A",
+                  font_cfg=("Consolas", 9), padx=8, pady=2).pack(side=tk.RIGHT, padx=8)
 
         self._console = tk.Text(frame,
                                  bg="#0D0D1A", fg=self.FG,
