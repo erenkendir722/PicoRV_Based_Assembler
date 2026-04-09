@@ -3,7 +3,8 @@
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, font
-from assembler import Assembler
+from core import Assembler
+from .highlighter import Highlighter
 
 
 def _make_btn(parent, text, command, bg, fg, hover_bg, font_cfg, padx=14, pady=6):
@@ -190,8 +191,14 @@ class RV32IAssemblerGUI:
         scroll_x.pack(fill=tk.X)
         self._editor.config(xscrollcommand=scroll_x.set)
 
-        self._editor.bind('<KeyRelease>', self._update_line_numbers)
+        self._highlighter = Highlighter(self._editor)
+
+        self._editor.bind('<KeyRelease>', self._on_key_release)
         self._editor.bind('<MouseWheel>', self._on_mousewheel)
+
+    def _on_key_release(self, _event=None):
+        self._update_line_numbers()
+        self._highlighter.apply()
 
     def _sync_scroll(self, *args):
         self._editor.yview(*args)
@@ -329,6 +336,7 @@ class RV32IAssemblerGUI:
             self._editor.delete("1.0", tk.END)
             self._editor.insert("1.0", content)
             self._update_line_numbers()
+            self._highlighter.apply()
             self._current_file = path
             self._log(f"Dosya açıldı: {path}", "info")
 
@@ -400,6 +408,7 @@ SONUC:  .word 0               # toplam buraya yazilir
         self._editor.delete("1.0", tk.END)
         self._editor.insert("1.0", sample)
         self._update_line_numbers()
+        self._highlighter.apply()
 
 
 # ─────────────────────────────────────────────────────

@@ -2,10 +2,10 @@
 # RV32I Assembler - Pass 1 + Pass 2
 # Kaynak kodu → Object code üretimi
 
-from asm_parser import Parser, parse_immediate, is_label_ref
-from symbol_table import SymbolTable
-from encoder import Encoder, EncoderError
-from opcode_table import get_instruction, DIRECTIVES
+from .asm_parser import Parser, parse_immediate, is_label_ref
+from .symbol_table import SymbolTable
+from .encoder import Encoder, EncoderError
+from .opcode_table import get_instruction, DIRECTIVES
 
 
 class AssemblyError(Exception):

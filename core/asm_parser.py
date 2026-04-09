@@ -3,7 +3,7 @@
 # Her satırı label | mnemonic | operandlar olarak ayrıştırır
 
 import re
-from opcode_table import get_instruction, get_register, is_directive, DIRECTIVES
+from .opcode_table import get_instruction, get_register, is_directive, DIRECTIVES
 
 
 class ParsedLine:

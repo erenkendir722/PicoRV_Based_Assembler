@@ -2,8 +2,8 @@
 # RV32I Assembler - Encoder
 # ParsedLine + SYMTAB bilgisinden 32-bit makine kodu üretir
 
-from opcode_table import get_instruction, get_register
-from asm_parser import parse_immediate, is_register, is_label_ref
+from .opcode_table import get_instruction, get_register
+from .asm_parser import parse_immediate, is_register, is_label_ref
 
 
 class EncoderError(Exception):
