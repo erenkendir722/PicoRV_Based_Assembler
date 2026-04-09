@@ -118,7 +118,7 @@ REGISTERS = {
 }
 
 # Desteklenen direktifler
-DIRECTIVES = {'.text', '.data', '.word', '.byte', '.org', '.end'}
+DIRECTIVES = {'.text', '.data', '.word', '.byte', '.org', '.end', '.global', '.extern'}
 
 
 def get_instruction(mnemonic: str) -> object:

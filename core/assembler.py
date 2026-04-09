@@ -27,8 +27,13 @@ class Assembler:
         self._prog_name    = "PROG"
 
         # Pass 2 çıktısı
-        self.object_code   = []   # [(address, machine_word_int)]
+        self.object_code   = []   # [(address, machine_word_int, size)]
         self.listing       = []   # [(address, hex_code, source_line)]
+
+        # Linker için meta-veri
+        self.globals     = {}    # {label: address}  — dışa açık semboller
+        self.externs     = set() # {label}            — dışarıdan beklenen semboller
+        self.relocations = []    # [(address, label, type)]  — çözülmemiş referanslar
 
     # ─────────────────────────────────────────
     # Ana metot: assemble(source) → başarı/hata
@@ -89,6 +94,18 @@ class Assembler:
                 self._intermediate.append((lc, pl))
                 break
 
+            if mnemonic == '.GLOBAL':
+                for sym in pl.operands:
+                    self.globals[sym] = None   # adres Pass 2'de doldurulacak
+                self._intermediate.append((lc, pl))
+                continue
+
+            if mnemonic == '.EXTERN':
+                for sym in pl.operands:
+                    self.externs.add(sym)
+                self._intermediate.append((lc, pl))
+                continue
+
             # Label varsa SYMTAB'a ekle
             if pl.label:
                 if not self.symtab.add(pl.label, lc):
@@ -103,6 +120,14 @@ class Assembler:
     # PASS 2: Makine kodunu üret
     # ─────────────────────────────────────────
     def _pass2(self):
+        # Global sembollerin adreslerini symtab'tan doldur
+        for sym in self.globals:
+            addr = self.symtab.all_symbols().get(sym)
+            if addr is not None:
+                self.globals[sym] = addr
+            else:
+                self._add_error(0, f".global '{sym}' bu dosyada tanımlı değil")
+
         symtab_dict = self.symtab.all_symbols()
 
         for lc, pl in self._intermediate:
@@ -112,7 +137,7 @@ class Assembler:
             mnemonic = pl.mnemonic.upper()
 
             # ── Direktifler ──
-            if mnemonic in ('.TEXT', '.DATA', '.ORG', '.END'):
+            if mnemonic in ('.TEXT', '.DATA', '.ORG', '.END', '.GLOBAL', '.EXTERN'):
                 self.listing.append((lc, '', pl.original.strip()))
                 continue
 
@@ -132,9 +157,16 @@ class Assembler:
 
             # ── Komutlar ──
             try:
-                machine_word = self.encoder.encode(
-                    mnemonic, pl.operands, lc, symtab_dict
-                )
+                # Extern referans var mı? Varsa relocation kaydı aç, 0 ile encode et
+                extern_ref = self._find_extern_ref(pl.operands)
+                if extern_ref:
+                    rtype = self._reloc_type(mnemonic)
+                    self.relocations.append((lc, extern_ref, rtype))
+                    # Extern sembolü geçici olarak 0 adresiyle ekle, encode ettir
+                    tmp_symtab = {**symtab_dict, extern_ref: 0}
+                    machine_word = self.encoder.encode(mnemonic, pl.operands, lc, tmp_symtab)
+                else:
+                    machine_word = self.encoder.encode(mnemonic, pl.operands, lc, symtab_dict)
                 self.object_code.append((lc, machine_word, 4))
                 self.listing.append((lc, f'{machine_word:08X}', pl.original.strip()))
             except EncoderError as e:
@@ -169,6 +201,27 @@ class Assembler:
             return default
         return val
 
+    def _find_extern_ref(self, operands: list) -> str | None:
+        """Operandlar arasında extern sembol varsa döndürür."""
+        for op in operands:
+            if op in self.externs:
+                return op
+        return None
+
+    def _reloc_type(self, mnemonic: str) -> str:
+        """Komut tipine göre relocation türünü döndürür."""
+        info = get_instruction(mnemonic)
+        if info is None:
+            return 'ABS'
+        fmt = info['fmt']
+        if fmt == 'J':
+            return 'J'
+        if fmt == 'B':
+            return 'B'
+        if fmt in ('I', 'S'):
+            return 'I'
+        return 'ABS'
+
     def _add_error(self, line_no: int, msg: str):
         self.errors.append(f"Satır {line_no}: {msg}")
 
@@ -181,6 +234,9 @@ class Assembler:
         self._start_addr   = 0
         self.object_code   = []
         self.listing       = []
+        self.globals     = {}
+        self.externs     = set()
+        self.relocations = []
 
     # ─────────────────────────────────────────
     # Çıktı üretimi
