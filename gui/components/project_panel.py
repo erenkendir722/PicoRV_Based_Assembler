@@ -6,7 +6,7 @@
 
 import os
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 
 from gui.theme import Theme
 from gui.widgets import make_btn
@@ -98,11 +98,8 @@ class ProjectPanel:
                  bg=Theme.ACCENT, fg="#FFFFFF", hover_bg="#C5602A",
                  font_cfg=("Consolas", 9, "bold"), padx=8, pady=4
                  ).pack(side=tk.LEFT, padx=4, pady=4)
-        make_btn(fbtn, "✖ Çıkar", self._remove_file,
-                 bg=Theme.BG3, fg=Theme.FG, hover_bg="#4A4A6A",
-                 font_cfg=("Consolas", 9), padx=8, pady=4
-                 ).pack(side=tk.LEFT, padx=4, pady=4)
-        make_btn(fbtn, "🗑 Temizle", self._clear_files,
+                 
+        make_btn(fbtn, "🗑 Sil", self._remove_file,
                  bg=Theme.BG3, fg=Theme.FG, hover_bg="#4A4A6A",
                  font_cfg=("Consolas", 9), padx=8, pady=4
                  ).pack(side=tk.LEFT, padx=4, pady=4)
@@ -282,18 +279,18 @@ class ProjectPanel:
         idx = self._selected_idx
         if idx >= len(self.files):
             return
+        path, _ = self.files[idx]
+        if not messagebox.askyesno("Sil", f"{os.path.basename(path)} silinsin mi?"):
+            return
+        try:
+            os.remove(path)
+        except OSError as e:
+            messagebox.showerror("Hata", str(e))
+            return
         self.files.pop(idx)
         self._checks.pop(idx)
         self._selected_idx = None
         self._rebuild_list()
-
-    def _clear_files(self):
-        self.files.clear()
-        self._checks.clear()
-        self._selected_idx = None
-        for w, *_ in self._check_widgets:
-            w.destroy()
-        self._check_widgets.clear()
 
     def _check_all(self):
         for var in self._checks:

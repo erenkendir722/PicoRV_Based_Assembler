@@ -80,3 +80,4 @@ FIB_ARR: .word 0            # [0]  eleman 0
          .word 0            # [7]  eleman 7
          .word 0            # [8]  eleman 8
          .word 0            # [9]  eleman 9
+
