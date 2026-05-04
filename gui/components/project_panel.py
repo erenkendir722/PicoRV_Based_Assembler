@@ -1,9 +1,4 @@
 # gui/components/project_panel.py
-# Proje paneli — sol kenar
-#
-# Dosya listesi + linker script + "Assemble & Link" butonu
-# Callback'ler app.py tarafından bağlanır.
-
 import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -13,156 +8,174 @@ from gui.widgets import make_btn
 from core import LinkerScript, LinkerScriptError
 
 
-# Dosya durumunu gösteren ikonlar
 _ICON = {
-    'idle':    '○',
-    'ok':      '●',
-    'error':   '✗',
+    'idle':  '·',
+    'ok':    '✓',
+    'error': '✗',
+}
+_ICON_COLOR = {
+    'idle':  Theme.FG3,
+    'ok':    Theme.GREEN,
+    'error': Theme.RED,
 }
 
 
 class ProjectPanel:
-    """
-    Sol kenar paneli.
-
-    Dışa açık:
-        files           → [(path, ObjectFile | None)]
-        script          → LinkerScript
-        on_build        → çağrıldığında app.py build tetikler
-        set_file_status(idx, 'ok'|'error'|'idle')
-        get_selected_path() → seçili dosyanın yolu
-        get_checked_indices() → build'e girecek dosyaların index listesi
-    """
-
     def __init__(self, parent: tk.Widget, on_build, on_file_select):
         self._on_build       = on_build
         self._on_file_select = on_file_select
-        self.files: list[tuple[str, object]] = []   # [(path, ObjectFile|None)]
-        self._checks: list[tk.BooleanVar] = []       # her dosya için checkbox var
-        self._check_widgets: list[tk.Widget] = []    # checkbox widget referansları
-        self._selected_idx: int | None = None        # tek tıklamayla seçili satır
+        self.files: list[tuple[str, object]] = []
+        self._checks: list[tk.BooleanVar]    = []
+        self._check_widgets: list[tk.Widget] = []
+        self._selected_idx: int | None       = None
         self.script = LinkerScript.default()
 
-        self.frame = tk.Frame(parent, bg=Theme.BG, width=300)
+        self.frame = tk.Frame(parent, bg=Theme.BG2, width=240)
         self.frame.pack(side=tk.LEFT, fill=tk.Y)
         self.frame.pack_propagate(False)
 
+        # İnce sağ kenarlık
+        tk.Frame(parent, bg=Theme.BORDER, width=1).pack(side=tk.LEFT, fill=tk.Y)
+
         self._build_ui()
 
-    # ─────────────────────────────────────────
-    # UI
-    # ─────────────────────────────────────────
     def _build_ui(self):
-        # Başlık
-        tk.Label(self.frame, text="  Proje",
-                 bg=Theme.BG2, fg=Theme.ACCENT2,
-                 font=("Consolas", 10, "bold"),
-                 anchor=tk.W).pack(fill=tk.X)
+        # ── EXPLORER başlığı ──
+        hdr = tk.Frame(self.frame, bg=Theme.BG2, height=36)
+        hdr.pack(fill=tk.X)
+        hdr.pack_propagate(False)
+        tk.Label(hdr, text="  EXPLORER",
+                 bg=Theme.BG2, fg=Theme.FG2,
+                 font=("Segoe UI", 8, "bold"),
+                 anchor=tk.W).pack(side=tk.LEFT, fill=tk.Y, padx=8)
+
+        # Klasör aç ikonu (sağda)
+        make_btn(hdr, "＋", self._add_folder,
+                 bg=Theme.BG2, fg=Theme.FG2, hover_bg=Theme.BG3,
+                 font_cfg=("Segoe UI", 13), padx=6, pady=0
+                 ).pack(side=tk.RIGHT, padx=4, pady=4)
+
+        tk.Frame(self.frame, bg=Theme.BORDER, height=1).pack(fill=tk.X)
 
         # ── Dosya listesi ──
-        list_outer = tk.Frame(self.frame, bg=Theme.EDITOR_BG)
-        list_outer.pack(fill=tk.BOTH, expand=True, pady=(2, 0))
+        list_outer = tk.Frame(self.frame, bg=Theme.BG2)
+        list_outer.pack(fill=tk.BOTH, expand=True)
 
-        # Canvas + scrollbar (checkbox listesi için)
-        self._canvas = tk.Canvas(list_outer, bg=Theme.EDITOR_BG,
-                                 highlightthickness=0, bd=0)
+        self._canvas = tk.Canvas(list_outer, bg=Theme.BG2,
+                                  highlightthickness=0, bd=0)
         sb = tk.Scrollbar(list_outer, orient=tk.VERTICAL,
-                          command=self._canvas.yview)
+                           command=self._canvas.yview, width=6)
         sb.pack(side=tk.RIGHT, fill=tk.Y)
         self._canvas.configure(yscrollcommand=sb.set)
         self._canvas.pack(fill=tk.BOTH, expand=True)
 
-        self._list_frame = tk.Frame(self._canvas, bg=Theme.EDITOR_BG)
+        self._list_frame = tk.Frame(self._canvas, bg=Theme.BG2)
         self._canvas_window = self._canvas.create_window(
             (0, 0), window=self._list_frame, anchor="nw")
 
         self._list_frame.bind("<Configure>", self._on_list_configure)
         self._canvas.bind("<Configure>", self._on_canvas_configure)
 
-        # Tüm seç / hiçbiri seçme
-        sel_row = tk.Frame(self.frame, bg=Theme.BG2)
-        sel_row.pack(fill=tk.X)
-        make_btn(sel_row, "✔ Tümü", self._check_all,
-                 bg=Theme.BG3, fg=Theme.FG, hover_bg="#4A4A6A",
-                 font_cfg=("Consolas", 9), padx=6, pady=3
-                 ).pack(side=tk.LEFT, padx=4, pady=3)
-        make_btn(sel_row, "✖ Hiçbiri", self._uncheck_all,
-                 bg=Theme.BG3, fg=Theme.FG, hover_bg="#4A4A6A",
-                 font_cfg=("Consolas", 9), padx=6, pady=3
-                 ).pack(side=tk.LEFT, padx=2, pady=3)
+        tk.Frame(self.frame, bg=Theme.BORDER, height=1).pack(fill=tk.X)
 
-        # Dosya butonları
-        fbtn = tk.Frame(self.frame, bg=Theme.BG2)
-        fbtn.pack(fill=tk.X)
-        make_btn(fbtn, "📁 Klasör Aç", self._add_folder,
-                 bg=Theme.ACCENT, fg="#FFFFFF", hover_bg="#C5602A",
-                 font_cfg=("Consolas", 9, "bold"), padx=8, pady=4
-                 ).pack(side=tk.LEFT, padx=4, pady=4)
-                 
-        make_btn(fbtn, "🗑 Sil", self._remove_file,
-                 bg=Theme.BG3, fg=Theme.FG, hover_bg="#4A4A6A",
-                 font_cfg=("Consolas", 9), padx=8, pady=4
-                 ).pack(side=tk.LEFT, padx=4, pady=4)
+        # ── Tümü / Hiçbiri ──
+        sel_row = tk.Frame(self.frame, bg=Theme.BG2)
+        sel_row.pack(fill=tk.X, padx=6, pady=4)
+        make_btn(sel_row, "Tümünü Seç", self._check_all,
+                 bg=Theme.BG3, fg=Theme.FG2, hover_bg=Theme.BORDER,
+                 font_cfg=("Segoe UI", 8), padx=8, pady=3
+                 ).pack(side=tk.LEFT, padx=(0, 4))
+        make_btn(sel_row, "Temizle", self._uncheck_all,
+                 bg=Theme.BG3, fg=Theme.FG2, hover_bg=Theme.BORDER,
+                 font_cfg=("Segoe UI", 8), padx=8, pady=3
+                 ).pack(side=tk.LEFT)
+        make_btn(sel_row, "🗑", self._remove_file,
+                 bg=Theme.BG3, fg=Theme.FG2, hover_bg="#3D1A1A",
+                 font_cfg=("Segoe UI", 10), padx=6, pady=2
+                 ).pack(side=tk.RIGHT)
+
+        tk.Frame(self.frame, bg=Theme.BORDER, height=1).pack(fill=tk.X)
 
         # app.py tarafından bağlanan callback'ler
         self.get_editor_code: callable = lambda: ""
         self.get_editor_name: callable = lambda: "editör"
         self.on_new_file_created: callable = lambda path: None
-        self.on_folder_opened: callable = lambda folder: None  # app.py bağlar
+        self.on_folder_opened: callable = lambda folder: None
 
         # ── Linker Script ──
-        tk.Label(self.frame, text="  Linker Script",
-                 bg=Theme.BG2, fg=Theme.ACCENT2,
-                 font=("Consolas", 10, "bold"),
-                 anchor=tk.W).pack(fill=tk.X, pady=(8, 0))
+        ls_hdr = tk.Frame(self.frame, bg=Theme.BG2, height=30)
+        ls_hdr.pack(fill=tk.X)
+        ls_hdr.pack_propagate(False)
+        tk.Label(ls_hdr, text="  LINKER SCRIPT",
+                 bg=Theme.BG2, fg=Theme.FG2,
+                 font=("Segoe UI", 8, "bold"),
+                 anchor=tk.W).pack(side=tk.LEFT, fill=tk.Y, padx=8)
 
-        sframe = tk.Frame(self.frame, bg=Theme.BG3)
-        sframe.pack(fill=tk.X, padx=4, pady=(2, 0))
+        tk.Frame(self.frame, bg=Theme.BORDER, height=1).pack(fill=tk.X)
 
-        for label, attr in [("text_base", "text_base"), ("data_base", "data_base")]:
-            row = tk.Frame(sframe, bg=Theme.BG3)
-            row.pack(fill=tk.X, padx=6, pady=3)
-            tk.Label(row, text=f"{label}:", bg=Theme.BG3, fg=Theme.FG2,
-                     font=("Consolas", 9), width=11, anchor=tk.W).pack(side=tk.LEFT)
-            entry = tk.Entry(row, bg=Theme.EDITOR_BG, fg=Theme.FG,
-                             font=("Consolas", 10), relief=tk.FLAT,
-                             insertbackground=Theme.ACCENT2, width=13)
-            entry.pack(side=tk.LEFT, padx=(4, 0))
+        sframe = tk.Frame(self.frame, bg=Theme.BG2)
+        sframe.pack(fill=tk.X, padx=8, pady=6)
+
+        for lbl_text, attr in [("text_base", "text_base"), ("data_base", "data_base")]:
+            row = tk.Frame(sframe, bg=Theme.BG2)
+            row.pack(fill=tk.X, pady=2)
+            tk.Label(row, text=lbl_text,
+                     bg=Theme.BG2, fg=Theme.FG3,
+                     font=("Segoe UI", 8), width=10, anchor=tk.W
+                     ).pack(side=tk.LEFT)
+            entry = tk.Entry(row,
+                             bg=Theme.BG3, fg=Theme.FG,
+                             font=("Consolas", 9),
+                             relief=tk.FLAT, bd=0,
+                             insertbackground=Theme.ACCENT2,
+                             highlightthickness=1,
+                             highlightbackground=Theme.BORDER,
+                             highlightcolor=Theme.ACCENT,
+                             width=13)
+            entry.pack(side=tk.LEFT, padx=(4, 0), ipady=3)
             entry.insert(0, f"0x{getattr(self.script, attr):08X}")
             setattr(self, f"_entry_{attr}", entry)
 
-        sbtn = tk.Frame(sframe, bg=Theme.BG3)
-        sbtn.pack(fill=tk.X, padx=6, pady=(2, 6))
-        make_btn(sbtn, "📂 Yükle", self._load_script,
-                 bg=Theme.BG3, fg=Theme.FG, hover_bg="#4A4A6A",
-                 font_cfg=("Consolas", 9), padx=8, pady=3
+        sbtn = tk.Frame(sframe, bg=Theme.BG2)
+        sbtn.pack(fill=tk.X, pady=(4, 0))
+        make_btn(sbtn, "Yükle", self._load_script,
+                 bg=Theme.BG3, fg=Theme.FG2, hover_bg=Theme.BORDER,
+                 font_cfg=("Segoe UI", 8), padx=10, pady=3
                  ).pack(side=tk.LEFT, padx=(0, 4))
-        make_btn(sbtn, "💾 Kaydet", self._save_script,
-                 bg=Theme.BG3, fg=Theme.FG, hover_bg="#4A4A6A",
-                 font_cfg=("Consolas", 9), padx=8, pady=3
+        make_btn(sbtn, "Kaydet", self._save_script,
+                 bg=Theme.BG3, fg=Theme.FG2, hover_bg=Theme.BORDER,
+                 font_cfg=("Segoe UI", 8), padx=10, pady=3
                  ).pack(side=tk.LEFT)
 
+        tk.Frame(self.frame, bg=Theme.BORDER, height=1).pack(fill=tk.X)
+
         # ── Build butonu ──
-        make_btn(self.frame, "▶  Assemble & Link", self._on_build,
-                 bg=Theme.ACCENT, fg="#FFFFFF", hover_bg="#C5602A",
-                 font_cfg=("Consolas", 11, "bold"), padx=16, pady=10
-                 ).pack(fill=tk.X, padx=4, pady=(10, 4))
+        build_wrap = tk.Frame(self.frame, bg=Theme.BG2)
+        build_wrap.pack(fill=tk.X, padx=8, pady=8)
+        make_btn(build_wrap, "▶  Build",
+                 self._on_build,
+                 bg=Theme.ACCENT, fg="#FFFFFF", hover_bg=Theme.ACCENT_H,
+                 font_cfg=("Segoe UI", 10, "bold"), padx=16, pady=8
+                 ).pack(fill=tk.X)
 
-        # Dışa aktar
-        make_btn(self.frame, "💾 .mem Dışa Aktar", self._on_export_mem,
-                 bg=Theme.BG3, fg=Theme.FG, hover_bg="#4A4A6A",
-                 font_cfg=("Consolas", 9)).pack(fill=tk.X, padx=4, pady=2)
-        make_btn(self.frame, "💾 .hex Dışa Aktar", self._on_export_hex,
-                 bg=Theme.BG3, fg=Theme.FG, hover_bg="#4A4A6A",
-                 font_cfg=("Consolas", 9)).pack(fill=tk.X, padx=4, pady=2)
+        # ── Dışa aktarma ──
+        exp_frame = tk.Frame(self.frame, bg=Theme.BG2)
+        exp_frame.pack(fill=tk.X, padx=8, pady=(0, 8))
+        make_btn(exp_frame, "Dışa Aktar  .mem",
+                 self._on_export_mem,
+                 bg=Theme.BG3, fg=Theme.FG2, hover_bg=Theme.BORDER,
+                 font_cfg=("Segoe UI", 8), padx=8, pady=4
+                 ).pack(fill=tk.X, pady=(0, 3))
+        make_btn(exp_frame, "Dışa Aktar  .hex",
+                 self._on_export_hex,
+                 bg=Theme.BG3, fg=Theme.FG2, hover_bg=Theme.BORDER,
+                 font_cfg=("Segoe UI", 8), padx=8, pady=4
+                 ).pack(fill=tk.X)
 
-        # Callback referansları (app.py bağlar)
         self.export_mem_cb = None
         self.export_hex_cb = None
 
-    # ─────────────────────────────────────────
-    # Canvas scroll ayarı
-    # ─────────────────────────────────────────
+    # ── Canvas scroll ──────────────────────────────────────────────
     def _on_list_configure(self, _=None):
         self._canvas.configure(scrollregion=self._canvas.bbox("all"))
 
@@ -170,39 +183,38 @@ class ProjectPanel:
         if event:
             self._canvas.itemconfig(self._canvas_window, width=event.width)
 
-    # ─────────────────────────────────────────
-    # Dosya listesi — iç metodlar
-    # ─────────────────────────────────────────
+    # ── Dosya listesi ──────────────────────────────────────────────
     def _add_row(self, path: str | None, checked: bool = True) -> int:
-        """Listeye yeni satır ekle, index döndür."""
-        idx = len(self._check_widgets)  # widget sayısı = mevcut satır sayısı
+        idx = len(self._check_widgets)
         var = tk.BooleanVar(value=checked)
         self._checks.append(var)
 
-        row = tk.Frame(self._list_frame, bg=Theme.EDITOR_BG, cursor="hand2")
-        row.pack(fill=tk.X, padx=2, pady=1)
+        row = tk.Frame(self._list_frame, bg=Theme.BG2, cursor="hand2", height=28)
+        row.pack(fill=tk.X)
+        row.pack_propagate(False)
 
         cb = tk.Checkbutton(row, variable=var,
-                            bg=Theme.EDITOR_BG, fg=Theme.FG,
-                            selectcolor=Theme.BG3,
-                            activebackground=Theme.EDITOR_BG,
-                            relief=tk.FLAT, bd=0,
-                            highlightthickness=0)
-        cb.pack(side=tk.LEFT)
+                             bg=Theme.BG2, fg=Theme.FG,
+                             selectcolor=Theme.ACCENT,
+                             activebackground=Theme.BG2,
+                             activeforeground=Theme.FG,
+                             relief=tk.FLAT, bd=0,
+                             highlightthickness=0,
+                             cursor="hand2")
+        cb.pack(side=tk.LEFT, padx=(6, 0))
 
         icon_lbl = tk.Label(row, text=_ICON['idle'],
-                            bg=Theme.EDITOR_BG, fg=Theme.FG2,
-                            font=("Consolas", 9))
-        icon_lbl.pack(side=tk.LEFT)
+                             bg=Theme.BG2, fg=Theme.FG3,
+                             font=("Consolas", 9))
+        icon_lbl.pack(side=tk.LEFT, padx=(2, 0))
 
-        name = os.path.basename(path) if path else self.get_editor_name() + "  [editör]"
-        name_lbl = tk.Label(row, text=f"  {name}",
-                            bg=Theme.EDITOR_BG, fg=Theme.FG,
-                            font=("Consolas", 10), anchor=tk.W)
+        name = os.path.basename(path) if path else (self.get_editor_name() + "  [editör]")
+        name_lbl = tk.Label(row, text=f" {name}",
+                             bg=Theme.BG2, fg=Theme.FG,
+                             font=("Segoe UI", 9), anchor=tk.W)
         name_lbl.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
-        # Tıklayınca dosyayı editörde aç
-        for widget in (row, icon_lbl, name_lbl, cb):
+        for widget in (row, icon_lbl, name_lbl):
             widget.bind("<Button-1>", lambda e, i=idx: self._on_row_click(i))
 
         self._check_widgets.append((row, icon_lbl, name_lbl, cb))
@@ -211,12 +223,10 @@ class ProjectPanel:
 
     def _on_row_click(self, idx: int):
         prev_idx = self._selected_idx
-        # Önce highlight'ı değiştir
         self._selected_idx = idx
         for i in range(len(self._check_widgets)):
             self._highlight_row(i, selected=(i == idx))
         path, _ = self.files[idx]
-        # Callback "hayır" dönerse eski seçime geri dön
         accepted = self._on_file_select(path)
         if accepted is False:
             self._selected_idx = prev_idx
@@ -227,16 +237,14 @@ class ProjectPanel:
         if idx >= len(self._check_widgets):
             return
         row, icon_lbl, name_lbl, cb = self._check_widgets[idx]
-        bg = Theme.ACCENT if selected else Theme.EDITOR_BG
-        fg = "#FFFFFF" if selected else Theme.FG
+        bg = Theme.BG3 if selected else Theme.BG2
+        fg = Theme.FG  if selected else Theme.FG
         for w in (row, icon_lbl, name_lbl):
             w.config(bg=bg)
-        name_lbl.config(fg=fg)
-        icon_lbl.config(fg="#FFFFFF" if selected else Theme.FG2)
+        name_lbl.config(fg=Theme.ACCENT2 if selected else Theme.FG)
         cb.config(bg=bg, activebackground=bg)
 
     def _rebuild_list(self):
-        """Tüm checkbox satırlarını yeniden çiz."""
         for w, *_ in self._check_widgets:
             w.destroy()
         self._check_widgets.clear()
@@ -245,15 +253,11 @@ class ProjectPanel:
         for i, (path, _) in enumerate(self.files):
             checked = old_checks[i] if i < len(old_checks) else True
             self._add_row(path, checked)
-        # Seçimi koru
         if self._selected_idx is not None and self._selected_idx < len(self.files):
             self._highlight_row(self._selected_idx, selected=True)
 
-    # ─────────────────────────────────────────
-    # Dosya listesi — dışa açık metodlar
-    # ─────────────────────────────────────────
+    # ── Dışa açık metodlar ─────────────────────────────────────────
     def add_file_entry(self, path: str | None, checked: bool = True):
-        """Dışarıdan (app.py) dosya eklemek için."""
         self.files.append((path, None))
         self._add_row(path, checked)
 
@@ -301,7 +305,6 @@ class ProjectPanel:
             var.set(False)
 
     def get_checked_indices(self) -> list[int]:
-        """İşaretli dosyaların index listesini döndür."""
         return [i for i, var in enumerate(self._checks) if var.get()]
 
     def get_selected_path(self) -> str | None:
@@ -310,7 +313,6 @@ class ProjectPanel:
         return None
 
     def select_index(self, idx: int):
-        """Belirtilen index'i seçili yap (highlight)."""
         if idx < 0 or idx >= len(self.files):
             return
         self._selected_idx = idx
@@ -326,25 +328,17 @@ class ProjectPanel:
         if idx >= len(self._check_widgets):
             return
         _, icon_lbl, _, _ = self._check_widgets[idx]
-        icon_lbl.config(text=_ICON[status])
         selected = (idx == self._selected_idx)
-        if selected:
-            icon_lbl.config(fg="#FFFFFF")
-        else:
-            color = {"ok": "#4EC9B0", "error": "#F44747", "idle": Theme.FG2}[status]
-            icon_lbl.config(fg=color)
+        icon_lbl.config(text=_ICON[status])
+        icon_lbl.config(fg="#FFFFFF" if selected else _ICON_COLOR[status])
 
-    def _row_text(self, path: str | None, status: str) -> str:
-        """Geriye dönük uyumluluk için (app.py bazı yerlerde kullanıyor)."""
+    def _row_text(self, path, status):
         if path is None:
-            name = self.get_editor_name()
-            return f"{_ICON[status]}  {name}  [editör]"
+            return f"{_ICON[status]}  {self.get_editor_name()}  [editör]"
         return f"{_ICON[status]}  {os.path.basename(path)}"
 
-    # ─────────────────────────────────────────
-    # Linker Script
-    # ─────────────────────────────────────────
-    def read_script(self) -> LinkerScript | None:
+    # ── Linker Script ──────────────────────────────────────────────
+    def read_script(self):
         raw_text = self._entry_text_base.get().strip()
         raw_data = self._entry_data_base.get().strip()
         try:

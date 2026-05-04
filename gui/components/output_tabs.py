@@ -5,35 +5,52 @@ from gui.theme import Theme
 
 class OutputTabsPanel:
     def __init__(self, parent):
-        self.frame = tk.Frame(parent, bg=Theme.BG)
+        self.frame = tk.Frame(parent, bg=Theme.BG2, width=440)
         self.frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.frame.pack_propagate(False)
 
-        self._notebook = ttk.Notebook(self.frame)
+        # İnce sol kenarlık
+        tk.Frame(self.frame, bg=Theme.BORDER, width=1).pack(side=tk.LEFT, fill=tk.Y)
+
+        inner = tk.Frame(self.frame, bg=Theme.BG2)
+        inner.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        self._notebook = ttk.Notebook(inner)
         self._notebook.pack(fill=tk.BOTH, expand=True)
 
-        self._tab_hex     = self._make_tab("🔢 Hex")
-        self._tab_listing = self._make_tab("📄 Listing")
-        self._tab_symtab  = self._make_tab("🔖 Semboller")
-        self._tab_object  = self._make_tab("📦 Object")
-        self._tab_map     = self._make_tab("🗺  Link Map")
-        self._tab_mem     = self._make_tab("🔲 .mem")
+        self._tab_hex     = self._make_tab("Hex")
+        self._tab_listing = self._make_tab("Listing")
+        self._tab_symtab  = self._make_tab("Semboller")
+        self._tab_object  = self._make_tab("Object")
+        self._tab_map     = self._make_tab("Link Map")
+        self._tab_mem     = self._make_tab(".mem")
 
     def _make_tab(self, title: str) -> tk.Text:
-        frame = tk.Frame(self._notebook, bg=Theme.BG)
-        self._notebook.add(frame, text=title)
+        frame = tk.Frame(self._notebook, bg=Theme.EDITOR_BG)
+        self._notebook.add(frame, text=f"  {title}  ")
 
         text = tk.Text(frame,
                        bg=Theme.EDITOR_BG, fg=Theme.FG,
                        font=("Consolas", 10),
                        relief=tk.FLAT, bd=0,
-                       padx=10, pady=8,
+                       padx=14, pady=10,
                        state=tk.DISABLED,
                        selectbackground=Theme.ACCENT,
-                       wrap=tk.NONE)
+                       selectforeground=Theme.FG,
+                       insertbackground=Theme.ACCENT2,
+                       wrap=tk.NONE,
+                       spacing1=1, spacing3=1)
+
+        # Satır renklendirme tagları
+        text.tag_config("addr",    foreground=Theme.FG3)
+        text.tag_config("hex",     foreground=Theme.ACCENT2)
+        text.tag_config("section", foreground=Theme.PURPLE, font=("Consolas", 10, "bold"))
+        text.tag_config("label",   foreground=Theme.YELLOW)
+        text.tag_config("sep",     foreground=Theme.BORDER)
+
         sy = ttk.Scrollbar(frame, command=text.yview)
         sy.pack(side=tk.RIGHT, fill=tk.Y)
-        sx = tk.Scrollbar(frame, orient=tk.HORIZONTAL,
-                          command=text.xview, bg=Theme.BG3)
+        sx = ttk.Scrollbar(frame, orient=tk.HORIZONTAL, command=text.xview)
         sx.pack(side=tk.BOTTOM, fill=tk.X)
         text.config(yscrollcommand=sy.set, xscrollcommand=sx.set)
         text.pack(fill=tk.BOTH, expand=True)
@@ -49,7 +66,6 @@ class OutputTabsPanel:
         self._set_text(self._tab_mem,     mem_out)
 
     def show_tab(self, name: str):
-        """'hex' | 'listing' | 'symtab' | 'object' | 'map' | 'mem'"""
         tabs = {'hex': 0, 'listing': 1, 'symtab': 2,
                 'object': 3, 'map': 4, 'mem': 5}
         if name in tabs:

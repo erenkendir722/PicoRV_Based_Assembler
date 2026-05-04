@@ -208,6 +208,54 @@ class Linker:
     # ─────────────────────────────────────────
     # Çıktı üretimi
     # ─────────────────────────────────────────
+    def get_listing(self, object_files, assemblies) -> str:
+        """
+        Linker sonrası listing: patch'lenmiş makine kodunu kaynak satırlarıyla gösterir.
+        object_files: link() e verilen ObjectFile listesi
+        assemblies:   aynı sırada Assembler nesneleri (listing için)
+        """
+        # Patch'lenmiş word haritası: final_addr → word
+        patched = {addr: word for addr, word, _ in self.linked_code}
+
+        lines = ["Adres      Hex Kod   Kaynak",
+                 "─" * 55]
+
+        for obj, asm in zip(object_files, assemblies):
+            lines.append(f"── {obj.name} ──")
+            # text_offset ve data_offset'i link_map'ten bul
+            t_off = d_off = 0
+            for name, section, orig, final in self.link_map:
+                if name == obj.name and section == 'text':
+                    if obj.text:
+                        t_off = final - obj.text[0][0]
+                    break
+            for name, section, orig, final in self.link_map:
+                if name == obj.name and section == 'data':
+                    if obj.data:
+                        d_off = final - obj.data[0][0]
+                    break
+
+            for orig_addr, hex_code, source in asm.listing:
+                if hex_code == '' or hex_code == 'HATA':
+                    lines.append(f"0x{orig_addr:08X}  {hex_code:<10}{source}")
+                    continue
+                # Final adresi hesapla
+                data_start = obj.data[0][0] if obj.data else None
+                if data_start is not None and orig_addr >= data_start:
+                    final_addr = orig_addr + d_off
+                else:
+                    final_addr = orig_addr + t_off
+                # Patch'lenmiş word'ü al
+                word = patched.get(final_addr)
+                if word is not None:
+                    lines.append(f"0x{final_addr:08X}  {word:08X}  {source}")
+                else:
+                    lines.append(f"0x{final_addr:08X}  {hex_code:<10}{source}")
+
+            lines.append("")
+
+        return "\n".join(lines)
+
     def get_hex_output(self) -> str:
         """Intel HEX benzeri düz adres:değer formatı."""
         return "\n".join(f"0x{addr:08X}:  {word:08X}"

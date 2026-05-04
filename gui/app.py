@@ -1,12 +1,4 @@
 # gui/app.py
-# RV32I Assembler + Linker — Ana Pencere
-#
-# Akış:
-#   1. Sol panel: dosya ekle, linker script ayarla
-#   2. Ortada: seçili dosyanın editörü
-#   3. Sağda: çıktı sekmeleri (hex, listing, sembol, link map, .mem)
-#   4. "Assemble & Link" → tüm dosyaları derle, link et, çıktıları doldur
-
 import os
 import tkinter as tk
 from tkinter import ttk, filedialog
@@ -24,119 +16,98 @@ class RV32IAssemblerGUI:
     def __init__(self, root: tk.Tk):
         self.root   = root
         self._linker: Linker | None = None
-
-        # Editörde açık dosyanın yolu (kaydetmek için)
         self._editor_path: str | None = None
-        # Editörde unsaved değişiklik var mı
         self._dirty = False
-        # Açık proje klasörü
         self._project_folder: str | None = None
 
         self._setup_window()
         self._build_ui()
 
-    # ─────────────────────────────────────────
-    # Pencere
-    # ─────────────────────────────────────────
+    # ── Pencere ───────────────────────────────────────────────────
     def _setup_window(self):
-        self.root.title("RV32I Assembler & Linker  —  PicoRV")
+        self.root.title("RV32I Assembler & Linker")
         self.root.configure(bg=Theme.BG)
-        self.root.geometry("1600x900")
-        self.root.minsize(1200, 680)
+        self.root.geometry("1440x860")
+        self.root.minsize(1100, 640)
         Theme.setup_ttk_styles()
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
-    # ─────────────────────────────────────────
-    # UI
-    # ─────────────────────────────────────────
+    # ── UI ────────────────────────────────────────────────────────
     def _build_ui(self):
-        # ── Başlık ──
-        header = tk.Frame(self.root, bg=Theme.ACCENT, height=46)
-        header.pack(fill=tk.X)
-        header.pack_propagate(False)
-        tk.Label(header,
-                 text="    RV32I Assembler & Linker  |  PicoRV",
-                 bg=Theme.ACCENT, fg="#FFFFFF",
-                 font=("Consolas", 13, "bold")).pack(side=tk.LEFT, padx=10)
+        # ── Üst toolbar ──
+        toolbar = tk.Frame(self.root, bg=Theme.BG4, height=40)
+        toolbar.pack(fill=tk.X)
+        toolbar.pack_propagate(False)
+        tk.Frame(self.root, bg=Theme.BORDER, height=1).pack(fill=tk.X)
 
-        # ── Konsol (en alta yerleşsin diye önce pack et) ──
-        self.console = ConsolePanel(self.root)
+        # Sol: uygulama adı
+        tk.Label(toolbar, text="  RV32I  Assembler & Linker",
+                 bg=Theme.BG4, fg=Theme.FG2,
+                 font=("Segoe UI", 9)).pack(side=tk.LEFT, padx=6)
 
-        # ── Gövde (başlık ile konsol arasını kaplar) ──
+        # Sağ: dosya adı + editör aksiyonları
+        self._file_lbl = tk.Label(toolbar, text="",
+                                   bg=Theme.BG4, fg=Theme.FG3,
+                                   font=("Segoe UI", 9))
+        self._file_lbl.pack(side=tk.LEFT, padx=(16, 0))
+
+        for text, cmd in [
+            ("Yeni",          self._new_file),
+            ("İmport",        self._import_file),
+            ("Kaydet",        self._save_file),
+            ("Farklı Kaydet", self._save_file_as),
+        ]:
+            make_btn(toolbar, text, cmd,
+                     bg=Theme.BG4, fg=Theme.FG2, hover_bg=Theme.BG3,
+                     font_cfg=("Segoe UI", 9), padx=10, pady=6
+                     ).pack(side=tk.RIGHT, padx=1)
+
+        # ── Gövde ──
         body = tk.Frame(self.root, bg=Theme.BG)
-        body.pack(fill=tk.BOTH, expand=True,
-                  before=self.console.frame)
+        body.pack(fill=tk.BOTH, expand=True)
 
-        # ── Sol: Proje paneli ──
+        # Sol: Proje paneli
         self.project = ProjectPanel(
             body,
             on_build=self._on_build,
             on_file_select=self._open_file_in_editor)
-        self.project.export_mem_cb  = self._export_mem
-        self.project.export_hex_cb  = self._export_hex
+        self.project.export_mem_cb    = self._export_mem
+        self.project.export_hex_cb    = self._export_hex
         self.project.on_folder_opened = self._on_folder_opened
-        # Editör içeriğini proje paneline bağla (build sırasında kullanılır)
-        self.project.get_editor_code = lambda: self.editor.get_code()
-        self.project.get_editor_name = lambda: (
+        self.project.get_editor_code  = lambda: self.editor.get_code()
+        self.project.get_editor_name  = lambda: (
             os.path.basename(self._editor_path) if self._editor_path else "editör")
 
-        tk.Frame(body, bg=Theme.BORDER, width=2).pack(side=tk.LEFT, fill=tk.Y)
-
-        # ── Orta: Editör ──
-        editor_wrap = tk.Frame(body, bg=Theme.BG)
+        # Orta: Editör
+        editor_wrap = tk.Frame(body, bg=Theme.EDITOR_BG)
         editor_wrap.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-        # Editör araç çubuğu
-        ebar = tk.Frame(editor_wrap, bg=Theme.BG2, height=36)
-        ebar.pack(fill=tk.X)
-        ebar.pack_propagate(False)
-
-        self._file_lbl = tk.Label(ebar, text="  —",
-                                  bg=Theme.BG2, fg=Theme.FG2,
-                                  font=("Consolas", 10))
-        self._file_lbl.pack(side=tk.LEFT, padx=8)
-
-        for text, cmd in [
-            ("📥 İmport",      self._import_file),
-            ("💾 Kaydet",      self._save_file),
-            ("💾 Farklı Kaydet", self._save_file_as),
-            ("📄 Yeni",        self._new_file),
-        ]:
-            make_btn(ebar, text, cmd,
-                     bg=Theme.BG2, fg=Theme.FG2, hover_bg=Theme.BG3,
-                     font_cfg=("Consolas", 9), padx=8, pady=4
-                     ).pack(side=tk.RIGHT, padx=2, pady=4)
-
         self.editor = EditorPanel(editor_wrap)
 
-        tk.Frame(body, bg=Theme.BORDER, width=2).pack(side=tk.LEFT, fill=tk.Y)
-
-        # ── Sağ: Çıktı ──
+        # Sağ: Çıktı sekmeleri
         self.output = OutputTabsPanel(body)
 
-    # ─────────────────────────────────────────
-    # Build: Assemble & Link
-    # ─────────────────────────────────────────
+        # Alt: Konsol
+        self.console = ConsolePanel(self.root)
+
+    # ── Build ─────────────────────────────────────────────────────
     def _on_build(self):
-        # Önce editördeki içeriği kaydet (dosyaya bağlıysa)
         self._autosave()
 
         checked = self.project.get_checked_indices()
         if not checked:
-            self.console.log("Build için en az bir dosyayı işaretleyin (✔).", "warning")
+            self.console.log("Build için en az bir dosyayı işaretleyin.", "warning")
             return
 
         files = self.project.files
         self.console.log(f"─── Build başladı ({len(checked)} dosya) ───", "info")
         self.root.update()
 
-        # ── Adım 1: İşaretli dosyaları assemble et ──
-        objects = []
+        objects      = []
+        assemblies   = []   # linker listing için assembler nesnelerini sakla
         all_ok  = True
         for idx in checked:
             path, _ = files[idx]
             if path is None:
-                # Editördeki kod
                 source = self.editor.get_code()
                 name   = (os.path.splitext(os.path.basename(self._editor_path))[0]
                           if self._editor_path else "editor")
@@ -162,6 +133,7 @@ class RV32IAssemblerGUI:
                 self.project.set_file_object(idx, obj)
                 self.project.set_file_status(idx, 'ok')
                 objects.append(obj)
+                assemblies.append(asm)
                 self.console.log(
                     f"  ✓ {name}.asm  "
                     f"{len(obj.text)}t/{len(obj.data)}d word  "
@@ -178,7 +150,6 @@ class RV32IAssemblerGUI:
             self.console.log("Build durduruldu: assembly hataları var.", "error")
             return
 
-        # ── Adım 2: Linker script ──
         result = self.project.read_script()
         if isinstance(result, tuple):
             _, err_msg = result
@@ -186,9 +157,7 @@ class RV32IAssemblerGUI:
             return
         script = self.project.script
 
-        # ── Adım 3: Link ──
         if len(objects) == 1:
-            # Tek dosya → sadece assemble çıktısını göster, link map boş
             path0, _ = files[checked[0]]
             if path0 is None:
                 source = self.editor.get_code()
@@ -210,8 +179,7 @@ class RV32IAssemblerGUI:
             self.output.show_tab('hex')
             if objects[0].externs:
                 self.console.log(
-                    f"⚠ Çözülmemiş extern semboller: {list(objects[0].externs)}  "
-                    f"— tam link için bu sembolleri tanımlayan dosyaları da işaretleyin.",
+                    f"⚠ Çözülmemiş extern semboller: {list(objects[0].externs)}",
                     "warning")
             else:
                 self.console.log("✓ Assemble başarılı.", "success")
@@ -237,7 +205,7 @@ class RV32IAssemblerGUI:
         checked_files = [files[i] for i in checked]
         self.output.set_content(
             hex_out     = linker.get_hex_output(),
-            listing_out = self._combined_listing(checked_files),
+            listing_out = linker.get_listing(objects, assemblies),
             symtab_out  = self._combined_symtab(objects),
             object_out  = self._objects_summary(checked_files, objects),
             map_out     = linker.get_link_map(),
@@ -245,14 +213,9 @@ class RV32IAssemblerGUI:
         )
         self.output.show_tab('map')
 
-    # ─────────────────────────────────────────
-    # Editör — dosya açma / kaydetme
-    # ─────────────────────────────────────────
+    # ── Editör — dosya işlemleri ──────────────────────────────────
     def _open_file_in_editor(self, path: str | None):
-        """Proje listesinden tıklandığında editörde aç.
-        path=None ise editör girdisi — dosya okuma yapma, sadece odaklan."""
         if path is None:
-            # Editör girdisine tıklandı — zaten orada, sadece odak ver
             self.editor._editor.focus_set()
             return
         if self._dirty and not self._confirm_discard():
@@ -265,7 +228,7 @@ class RV32IAssemblerGUI:
         self.editor.set_code(content)
         self._editor_path = path
         self._dirty = False
-        self._file_lbl.config(text=f"  {os.path.basename(path)}")
+        self._file_lbl.config(text=f"{os.path.basename(path)}")
         self.editor._editor.edit_modified(False)
         self.editor._editor.bind('<<Modified>>', self._on_editor_modified)
 
@@ -273,15 +236,14 @@ class RV32IAssemblerGUI:
         if self.editor._editor.edit_modified():
             self._dirty = True
             name = os.path.basename(self._editor_path) if self._editor_path else "yeni dosya"
-            self._file_lbl.config(text=f"  {name}  *")
+            self._file_lbl.config(text=f"{name}  ●")
             self.editor._editor.edit_modified(False)
 
     def _on_folder_opened(self, folder: str):
         self._project_folder = folder
-        self._file_lbl.config(text=f"  📁 {os.path.basename(folder)}")
+        self._file_lbl.config(text=f"{os.path.basename(folder)}/")
 
     def _new_file(self):
-        """İsim sor, boş dosyayı diske kaydet, editörde ve listede aç."""
         if not self._project_folder:
             self.console.log("Önce sol panelden bir klasör açın.", "warning")
             return
@@ -294,17 +256,14 @@ class RV32IAssemblerGUI:
             filetypes=[("Assembly", "*.asm *.s"), ("Tümü", "*.*")])
         if not path:
             return
-        # Boş dosyayı diske oluştur
         with open(path, 'w', encoding='utf-8') as f:
             f.write("")
-        # Editörde aç
         self.editor.set_code("")
         self._editor_path = path
         self._dirty = False
-        self._file_lbl.config(text=f"  {os.path.basename(path)}")
+        self._file_lbl.config(text=f"{os.path.basename(path)}")
         self.editor._editor.edit_modified(False)
         self.editor._editor.bind('<<Modified>>', self._on_editor_modified)
-        # Proje listesine ekle ve seç
         if not any(p == path for p, _ in self.project.files):
             self.project.add_file_entry(path, checked=True)
         for i, (p, _) in enumerate(self.project.files):
@@ -313,7 +272,6 @@ class RV32IAssemblerGUI:
                 break
 
     def _import_file(self):
-        """Dışarıdan bir .asm dosyası seç, proje klasörüne kopyala, listeye ekle."""
         import shutil
         if not self._project_folder:
             self.console.log("Önce sol panelden bir klasör açın.", "warning")
@@ -332,7 +290,6 @@ class RV32IAssemblerGUI:
                     return
             shutil.copy2(src, dest)
             self.console.log(f"İmport edildi: {os.path.basename(dest)}", "success")
-        # Listeye ekle ve editörde aç
         if not any(p == dest for p, _ in self.project.files):
             self.project.add_file_entry(dest, checked=True)
         self._open_file_in_editor(dest)
@@ -342,18 +299,16 @@ class RV32IAssemblerGUI:
                 break
 
     def _save_file(self):
-        """Kaydet — bağlı dosyaya yaz. Bağlı dosya yoksa Farklı Kaydet'e düş."""
         if not self._editor_path:
             self._save_file_as()
             return
         with open(self._editor_path, 'w', encoding='utf-8') as f:
             f.write(self.editor.get_code())
         self._dirty = False
-        self._file_lbl.config(text=f"  {os.path.basename(self._editor_path)}")
+        self._file_lbl.config(text=f"{os.path.basename(self._editor_path)}")
         self.console.log(f"Kaydedildi: {self._editor_path}", "success")
 
     def _save_file_as(self):
-        """Her zaman dialog aç, farklı isimle kaydet."""
         if not self._project_folder:
             self.console.log("Önce sol panelden bir klasör açın.", "warning")
             return
@@ -369,9 +324,8 @@ class RV32IAssemblerGUI:
         old_path = self._editor_path
         self._editor_path = path
         self._dirty = False
-        self._file_lbl.config(text=f"  {os.path.basename(path)}")
+        self._file_lbl.config(text=f"{os.path.basename(path)}")
         self.console.log(f"Farklı kaydedildi: {path}", "success")
-        # Listede eski path varsa güncelle, yoksa ekle
         for idx, (p, obj) in enumerate(self.project.files):
             if p == old_path:
                 self.project.files[idx] = (path, obj)
@@ -381,55 +335,22 @@ class RV32IAssemblerGUI:
             self.project.add_file_entry(path, checked=True)
 
     def _autosave(self):
-        """Editörde değişiklik varsa ve dosyaya bağlıysa otomatik kaydet.
-        Editör girdisi proje listesindeyse kaydetmeye gerek yok — build direkt okur."""
         if self._dirty and self._editor_path:
             with open(self._editor_path, 'w', encoding='utf-8') as f:
                 f.write(self.editor.get_code())
             self._dirty = False
-            self._file_lbl.config(
-                text=f"  {os.path.basename(self._editor_path)}")
+            self._file_lbl.config(text=f"{os.path.basename(self._editor_path)}")
 
-    def _load_sample(self):
-        sample = """\
-# Örnek: 1'den 5'e toplam = 15
-.global MAIN
-.text
-.org 0x0
-
-MAIN:   addi  x1, x0, 0      # toplam = 0
-        addi  x2, x0, 1      # sayac  = 1
-        addi  x3, x0, 5      # limit  = 5
-
-LOOP:   add   x1, x1, x2     # toplam += sayac
-        addi  x2, x2, 1      # sayac++
-        bge   x3, x2, LOOP   # sayac <= 5 → devam
-
-        lui   x4, 1           # x4 = 0x1000
-        sw    x1, 0(x4)       # sonucu belleğe yaz
-        ebreak
-
-.data
-.org 0x1000
-SONUC:  .word 0
-"""
-        self.editor.set_code(sample)
-        self._editor_path = None
-        self._dirty = False
-        self._file_lbl.config(text="  örnek kod  (kaydedilmedi)")
-
-    # ─────────────────────────────────────────
-    # Dışa aktarma
-    # ─────────────────────────────────────────
+    # ── Dışa aktarma ──────────────────────────────────────────────
     def _export_mem(self):
         if not self._linker:
-            self.console.log("Önce Assemble & Link çalıştırın.", "warning")
+            self.console.log("Önce Build çalıştırın.", "warning")
             return
         self._export_to_file(".mem", "mem Dosyası", self._linker.get_mem_output())
 
     def _export_hex(self):
         if not self._linker:
-            self.console.log("Önce Assemble & Link çalıştırın.", "warning")
+            self.console.log("Önce Build çalıştırın.", "warning")
             return
         self._export_to_file(".hex", "Hex Dosyası", self._linker.get_hex_output())
 
@@ -443,9 +364,7 @@ SONUC:  .word 0
                 f.write(content)
             self.console.log(f"Kaydedildi: {path}", "success")
 
-    # ─────────────────────────────────────────
-    # Yardımcılar
-    # ─────────────────────────────────────────
+    # ── Yardımcılar ───────────────────────────────────────────────
     def _combined_listing(self, files) -> str:
         lines = []
         for path, _ in files:
@@ -489,7 +408,6 @@ SONUC:  .word 0
 
     @staticmethod
     def _asm_to_mem(asm: Assembler) -> str:
-        """Tek dosya için $readmemh formatı."""
         lines = []
         prev  = None
         for addr, word, size in asm.object_code:
@@ -513,7 +431,6 @@ SONUC:  .word 0
         self.root.destroy()
 
 
-# ─────────────────────────────────────────────────────
 if __name__ == '__main__':
     root = tk.Tk()
     app  = RV32IAssemblerGUI(root)
