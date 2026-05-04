@@ -92,6 +92,77 @@ class ObjectFile:
             symtab      = d['symtab'],
         )
 
+    # ─────────────────────────────────────────
+    # Object record (H/D/T/M/E formatı)
+    # ─────────────────────────────────────────
+    def get_object_record(self) -> str:
+        """
+        SIC/XE benzeri object record formatı:
+          H — Header
+          D — Define (global semboller)
+          R — Refer  (extern semboller)
+          T — Text   (.text section makine kodu)
+          M — Modification (relocation kayıtları)
+          E — End
+        """
+        lines = []
+        name = self.name[:6].upper()
+
+        all_words = self.text + self.data
+        if not all_words:
+            return f"H{name:<6}000000000000\nE000000"
+
+        start  = all_words[0][0]
+        last_a, _, last_s = all_words[-1]
+        length = (last_a + last_s) - start
+
+        # H kaydı
+        lines.append(f"H{name:<6}{start:06X}{length:06X}")
+
+        # D kaydı — global semboller
+        if self.globals:
+            d_parts = ""
+            for sym, addr in self.globals.items():
+                addr_val = addr if addr is not None else 0
+                d_parts += f"{sym:<6}{addr_val:06X}"
+            lines.append(f"D{d_parts}")
+
+        # R kaydı — extern semboller
+        if self.externs:
+            r_parts = "".join(f"{s:<6}" for s in self.externs)
+            lines.append(f"R{r_parts}")
+
+        # T kayıtları — her section için ayrı blok
+        for section_words in (self.text, self.data):
+            if not section_words:
+                continue
+            i = 0
+            while i < len(section_words):
+                rec_start  = section_words[i][0]
+                next_addr  = rec_start
+                hex_bytes  = ""
+                while i < len(section_words) and len(hex_bytes) < 56:
+                    addr, val, size = section_words[i]
+                    if addr != next_addr:
+                        break
+                    hex_bytes += f"{val:0{size * 2}X}"
+                    next_addr  = addr + size
+                    i += 1
+                byte_count = len(hex_bytes) // 2
+                lines.append(f"T{rec_start:06X}{byte_count:02X}{hex_bytes}")
+
+        # M kayıtları — relocation
+        for addr, label, rtype in self.relocations:
+            lines.append(f"M{addr:06X}05+{label:<6}")
+
+        # E kaydı
+        entry = self.globals.get(name, start)
+        if entry is None:
+            entry = start
+        lines.append(f"E{entry:06X}")
+
+        return "\n".join(lines)
+
     def __repr__(self):
         return (f"ObjectFile({self.name!r}, "
                 f"text={len(self.text)} words, "

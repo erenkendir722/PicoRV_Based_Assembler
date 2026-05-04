@@ -391,20 +391,15 @@ class RV32IAssemblerGUI:
                 lines.append(f"    {label:<20} → 0x{addr:08X}{g}")
         return "\n".join(lines)
 
-    def _objects_summary(self, files, objects) -> str:
-        lines = ["Object Dosyaları", "─" * 50]
+    def _objects_summary(self, files, objects, assemblies=None) -> str:
+        blocks = []
         for (path, _), obj in zip(files, objects):
             fname = os.path.basename(path) if path else "[editör]"
-            lines += [
-                f"  {fname}",
-                f"    text  : {len(obj.text)} word",
-                f"    data  : {len(obj.data)} word",
-                f"    global: {list(obj.globals.keys()) or '—'}",
-                f"    extern: {list(obj.externs) or '—'}",
-                f"    reloc : {len(obj.relocations)}",
-                "",
-            ]
-        return "\n".join(lines)
+            header = f"── {fname} " + "─" * max(0, 50 - len(fname))
+            blocks.append(header)
+            blocks.append(obj.get_object_record())
+            blocks.append("")
+        return "\n".join(blocks)
 
     @staticmethod
     def _asm_to_mem(asm: Assembler) -> str:
