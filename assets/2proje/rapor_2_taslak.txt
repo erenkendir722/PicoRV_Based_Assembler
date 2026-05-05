@@ -1,0 +1,846 @@
+================================================================================
+          SAKARYA UYGULAMALI BILIMLER UNIVERSITESI
+
+          SISTEM PROGRAMLAMA DERSI 2. PROJE ODEVI
+
+    PICORV ISLEMCI ALT KUMESI (RV32I) ICIN LINKER TASARIMI
+                 VE FPGA UZERINDE CALISTIRMA
+
+                       TAKIM UYELERI
+                       -ALIHAN HOYLU
+                       -FEYZA OZDEN
+                       -ENES DURAN
+                       -MUHAMMED EREN KENDIR
+================================================================================
+
+
+ICINDEKILER
+
+
+Bolum 1.
+GIRIS ........................................................... 3
+
+Bolum 2.
+LITERATUR ARASTIRMASI ........................................... 4
+  2.1. Linker (Baglaici) Kavrami ve Tarihsel Gelisim ............ 4
+  2.2. Object Dosya Formatlari: ELF, COFF ve SIC/XE ............ 4
+  2.3. Sembol Cozumleme (Symbol Resolution) Algoritmalari ....... 4
+  2.4. Relocation (Adres Baglama) Teknikleri ................... 4
+  2.5. Linker Script Mimarisi .................................. 5
+  2.6. FPGA Bellek Yapisi ve BRAM Yukleme Yontemleri ........... 5
+
+Bolum 3.
+SISTEM MIMARISI ................................................. 6
+  3.1. Genel Mimari ve Modul Yapisi ............................ 6
+  3.2. Assembler - Linker Entegrasyonu ......................... 6
+  3.3. Veri Akisi Diyagrami .................................... 6
+
+Bolum 4.
+OBJECT DOSYA FORMATI ............................................ 7
+  4.1. ObjectFile Veri Yapisi .................................. 7
+  4.2. H/D/R/T/M/E Kayit Formati .............................. 7
+  4.3. JSON Serileştirme ....................................... 7
+
+Bolum 5.
+GLOBAL VE EXTERN SEMBOL YONETIMI ................................ 8
+  5.1. .global Direktifi ve Global Sembol Tablosu .............. 8
+  5.2. .extern Direktifi ve Dis Referanslar ..................... 8
+  5.3. Sembol Cakisma Kontrolu ................................. 8
+
+Bolum 6.
+LINKLEME ALGORITMASI ............................................ 9
+  6.1. Adim 1 — Section Yerlestirme (Layout) ................... 9
+  6.2. Adim 2 — Global Sembol Tablolarinin Birlestirilmesi ...... 9
+  6.3. Adim 3 — Extern Bagimliliklarin Kontrolu ................ 9
+  6.4. Adim 4 — Relocation (Adres Yamalama) ................... 10
+  6.5. Akis Diyagrami ......................................... 10
+
+Bolum 7.
+RELOCATION MEKANIZMASI .......................................... 11
+  7.1. Relocation Tipleri: J, B, I, ABS ....................... 11
+  7.2. J-Type (JAL) Relocation Hesabi ......................... 11
+  7.3. B-Type (Branch) Relocation Hesabi ...................... 11
+  7.4. I-Type ve ABS Relocation ............................... 11
+
+Bolum 8.
+LINKER SCRIPT TASARIMI .......................................... 12
+  8.1. .ld Dosya Formati ...................................... 12
+  8.2. text_base ve data_base Adresleme ........................ 12
+  8.3. Varsayilan Bellek Duzenlemesi ........................... 12
+
+Bolum 9.
+BELLEK YERLESIMI VE FPGA ENTEGRASYONU ........................... 13
+  9.1. .text ve .data Bolumlerinin Ayristirilmasi .............. 13
+  9.2. $readmemh (.mem) Cikti Formati .......................... 13
+  9.3. BRAM Initialization Yontemi ............................ 13
+  9.4. PicoRV32 Uzerinde Calistirma ........................... 13
+
+Bolum 10.
+KULLANILAN VERI YAPILARI ........................................ 14
+  10.1. Sozluk (Dictionary) Yapilari .......................... 14
+  10.2. Liste (List) Yapilari ................................. 14
+  10.3. Ozel Sinif Yapilari (Custom Objects) .................. 14
+
+Bolum 11.
+TEST SENARYOLARI VE SONUCLAR .................................... 15
+  11.1. Birim Testleri ........................................ 15
+  11.2. Entegrasyon Testleri (Coklu Dosya Linkleme) ........... 15
+  11.3. FPGA Dogrulama Testleri ............................... 15
+
+Bolum 12.
+ALGORITMA KARMASIKLIGI ANALIZI .................................. 16
+  12.1. Olcum Yontemi ve Metodoloji ........................... 16
+  12.2. Zaman Karmasikligi Analizi ............................ 16
+  12.3. Alan Karmasikligi Analizi ............................. 16
+
+Bolum 13.
+MUHENDISLIK COZUMUNUN ETKILERI .................................. 17
+  13.1. Teknolojik Etki ....................................... 17
+  13.2. Ekonomik Etki ......................................... 17
+  13.3. Toplumsal ve Egitimsel Etki ........................... 17
+  13.4. Guvenlik ve Etik Boyut ................................ 17
+
+Bolum 14.
+TAKIM CALISMASI VE IS BOLUMU .................................... 18
+  14.1. Modul Bazli Is Dagilimi ............................... 18
+  14.2. Koordinasyon ve Test Sureci ........................... 18
+
+Bolum 15.
+SONUC VE DEGERLENDIRME .......................................... 19
+  15.1. Basarilar ............................................. 19
+  15.2. Tespit Edilen Sinirliliklar ........................... 19
+  15.3. Gelecek Calisma Onerileri ............................. 19
+
+KAYNAKCA ....................................................... 20
+
+
+================================================================================
+BOLUM 1. GIRIS (PC 6)
+================================================================================
+
+Yazilim gelistirme surecinde kaynak kodun donanima tasınması bircok
+katmanlı bir donusum zincirine dayanmaktadir. Bu zincirin kritik bir
+halkasini olusturan linker (baglaici) yazilimlari, birbirinden bagimsiz
+derlenmis nesne (object) dosyalarini tek bir yurutullebilir programa
+donusturmekle gorevlidir. Modern isletim sistemlerinde bu surec GNU ld,
+LLVM lld gibi olgun araclar tarafindan yurutulmektedir; ancak gömulü
+sistem altyapilarinda ve egitim amacli RISC-V platformlarinda bu aracin
+sifirdan tasarlanmasi, sistemin ic isleyisinin derinlemesine kavranmasini
+saglamaktadir.
+
+Bu proje kapsaminda, bir onceki projede gelistirilen RV32I Assembler
+altyapisi genisleterek coklu nesne dosyalarini isleyebilen bir Linker
+tasarlanmis ve uretilen yurutullebilir kodun PicoRV32 islemcisi uzerinde
+FPGA platformunda calistirilmasi hedeflenmistir. (PC6)
+
+Gelistirilen sistem; sembol tablosu yonetimi, global/extern sembol
+cozumleme, relocation (adres baglama) islemleri ve linker script destegini
+icerecek sekilde tasarlanmis; cikti olarak FPGA belleklerine dogrudan
+yuklenebilen $readmemh formati (.mem) ve Intel HEX formati uretilmistir.
+
+Raporun devam eden bolumlerinde PC6, PC7, PC8, PC9, PC10, PC12, PC13 ve
+PC17 program ciktilari kapsaminda linker'in literatur altyapisi, mimari
+tasarimi, linkleme algoritmasi, relocation mekanizmasi, test senaryolari,
+FPGA entegrasyonu ve ekip koordinasyonu detayli olarak ele alinacaktir.
+
+
+================================================================================
+BOLUM 2. LITERATUR ARASTIRMASI (PC 6)
+================================================================================
+
+
+2.1. Linker (Baglaici) Kavrami ve Tarihsel Gelisim
+
+Linker kavrami, bilgisayar tarihinin ilk donemlerinden itibaren vardir.
+Ilk programlar tek bir kaynak dosyadan olusurken, yazilimin buyumesiyle
+birlikte modular programlama zorunlu hale gelmis ve bagimsiz derlenmis
+modulleri bir araya getirebilen araclara ihtiyac duyulmustur. Literaturde
+linker'lar iki temel kategoride incelenmektedir: statik linker'lar
+(static linker) ve dinamik baglaicilar (dynamic linker/loader). Bu
+projede PicoRV32'nin gomulu mimari gereksinimleri dogrultusunda statik
+linkleme yaklasimi benimsenmistir. [1][2]
+
+
+2.2. Object Dosya Formatlari: ELF, COFF ve SIC/XE
+
+Literaturde en yaygin object dosya formati ELF (Executable and Linkable
+Format) olup modern Linux tabanli sistemlerde standart olarak
+kullanilmaktadir. Windows ekosisteminde COFF/PE formati tercih edilirken,
+egitim amacli sistemlerde SIC/XE mimarisine ait H/T/E (Header/Text/End)
+kayit formati yaygin referans noktasidir. Bu projede; 1. projede de
+benimsenen SIC/XE benzeri H/D/R/T/M/E (Header/Define/Refer/Text/
+Modification/End) kayit yapisi linker katmanina uyarlanarak
+genisletilmistir. Eklenen D (Define) kaydi global sembolleri, R (Refer)
+kaydi extern sembolleri ve M (Modification) kaydi relocation noktalarini
+ifade etmektedir. [2][3]
+
+
+2.3. Sembol Cozumleme (Symbol Resolution) Algoritmalari
+
+Literaturde sembol cozumleme sureci iki temel kural uzerine insa
+edilmektedir: (1) her sembolun yalnizca bir kez tanimlanmasi (unique
+definition rule) ve (2) her referans edilen sembolun mutlaka bir tanim
+noktasina sahip olmasi (completeness rule). Bu kurallar ihlal edildiginde
+linker hatasi (undefined reference, multiple definition) uretilmektedir.
+Yapilan arastirmalarda cok dosyali projelerde sembol cakismasinin onlenmesi
+icin global sembol tablolarinin ayrı tutulup birlestirilmeden once
+cakisma kontrolunun yapilmasi gerektigi belirlenmistir. [1]
+
+
+2.4. Relocation (Adres Baglama) Teknikleri
+
+Her nesne dosyasi bagimsiz olarak derlendigi icin icerdigi sembol
+referanslari gercek bellek adreslerini degil, gecici yer tutucu degerler
+icermektedir. Linker bu gercek adresleri hesaplayarak ilgili komut
+alanlarini yamalamaktadir (patching). RV32I mimarisinde farkli komut
+formatlari farkli bit yerlesim duzenlerine sahip oldugu icin relocation
+islemi format bazinda ayristirilmalidir. Literaturde bu tip mimari ozgu
+relocation hesaplamalari icin J-type (JAL), B-type (branch), I-type ve
+mutlak (ABS) olmak uzere dort temel relocation tipi tanimlanmistir. [1][4]
+
+
+2.5. Linker Script Mimarisi
+
+GNU ld'nin linker script mekanizmi, bellek bolumlerinin baslangiç
+adreslerini, boyutlarini ve yerlestirme sirasini tanimlayan bildirimsel
+bir dil sunmaktadir. Egitim amacli sistemlerde bu mekanizmanin
+sadeleştirilmis bir alt kumesinin uygulanmasi yeterlidir. Bu projede
+MEMORY blogu icinde text_base ve data_base adreslerini tanimlayan, C-tarz
+/* */ ve # yorum satirlarini destekleyen minimal bir .ld dosya formati
+tasarlanmistir. [3]
+
+
+2.6. FPGA Bellek Yapisi ve BRAM Yukleme Yontemleri
+
+PicoRV32 cekirdegi FPGA uzerinde genellikle BRAM (Block RAM) ile
+eslestirilerek calistirilmaktadir. Vivado/Quartus ortamlarinda BRAM icin
+baslangic degerleri $readmemh sistem gorevi (system task) ile yuklenen
+.mem dosyasindan elde edilebilmektedir. Bu dosya formati her satira bir
+32-bit hex deger ve adres atlama noktalari icin @ isareti kullanmaktadir.
+Linker ciktisinin dogrudan bu formatta uretilmesi, FPGA entegrasyonunu
+otomatilestirir ve manuel veri donusumunu ortadan kaldirir. [4][5]
+
+
+================================================================================
+BOLUM 3. SISTEM MIMARISI (PC 6)
+================================================================================
+
+
+3.1. Genel Mimari ve Modul Yapisi
+
+Gelistirilen sistem, asagidaki Python modüllerinden olusmaktadir:
+
+  core/assembler.py      Iki gecisli RV32I assembler (1. projeden)
+  core/object_file.py    ObjectFile veri yapisi ve H/D/R/T/M/E formati
+  core/linker.py         Ana linker motoru (section layout, relocation)
+  core/linker_script.py  .ld dosya ayristirici ve bellek adres yoneticisi
+  core/symbol_table.py   Sembol tablosu (1. projeden, linker icin genisletildi)
+  gui/                   Tkinter tabanli grafiksel kullanici arayuzu
+
+
+3.2. Assembler - Linker Entegrasyonu
+
+Her kaynak .asm dosyasi once Assembler tarafindan islenir ve bir
+ObjectFile nesnesine donusturulur. ObjectFile; .text section, .data
+section, global sembol tablosu, extern sembol listesi ve relocation
+kayitlarini tasimaktadir. Linker bu ObjectFile nesnelerini girdi olarak
+alarak birlestirme, adres hesaplama ve relocation yamalama islemlerini
+gerceklestirir. (PC6)
+
+  [.asm] → Assembler → [ObjectFile] ─┐
+  [.asm] → Assembler → [ObjectFile] ─┤→ Linker → [.hex / .mem / listing]
+  [.asm] → Assembler → [ObjectFile] ─┘
+                                ↑
+                          [memory.ld]
+
+
+3.3. Veri Akisi
+
+  Giris:   Kaynak .asm dosyalari + memory.ld linker script
+  Pass 1:  Her dosya icin sembol toplama ve LC hesabi
+  Pass 2:  Her dosya icin makine kodu uretimi + relocation kaydi
+  Linker:  Section layout → sembol birlestirme → relocation yamalama
+  Cikis:   .hex, .mem, listing, link map, object record
+
+
+================================================================================
+BOLUM 4. OBJECT DOSYA FORMATI (PC 6)
+================================================================================
+
+
+4.1. ObjectFile Veri Yapisi
+
+Gelistirilen ObjectFile sinifi asagidaki alanlari barindirmaktadir:
+
+  ObjectFile
+    name        : str          — modul adi (ornek: "main", "math")
+    text        : list         — [(adres, deger, boyut)] .text section kelimeleri
+    data        : list         — [(adres, deger, boyut)] .data section kelimeleri
+    globals     : dict         — {etiket: adres} disariya acik semboller
+    externs     : list         — [etiket] disaridan beklenen semboller
+    relocations : list         — [(adres, etiket, tip)] cozumlenmemis referanslar
+    symtab      : dict         — {etiket: adres} tum lokal semboller
+
+  from_assembler(asm, name) → ObjectFile
+    Assembler nesnesinden otomatik ObjectFile uretir.
+
+  save(path) / load(path)
+    JSON formatinda .o dosyasina yazar / okur.
+
+
+4.2. H/D/R/T/M/E Kayit Formati
+
+SIC/XE standardindan esinlenerek tasarlanan nesne kayit formati:
+
+  H — Header     : Hmodul_adi  baslangic_adresi  uzunluk
+  D — Define     : D etiket adres [etiket adres ...]  (global semboller)
+  R — Refer      : R etiket [etiket ...]               (extern semboller)
+  T — Text       : T baslangic_adresi  byte_sayisi  hex_makine_kodu
+  M — Modifikasyon: M relocation_adresi  05+etiket    (yamalanacak yer)
+  E — End        : E giris_noktasi_adresi
+
+Ornek cikti (math.asm):
+  HMATH  00000200000008
+  DFIB_STEP000200
+  T00020002 00B50533 00008067
+  E000200
+
+
+4.3. JSON Serilestirme
+
+Linker isi akisinda ObjectFile nesneleri bellekte tutulmakta, ihtiyac
+halinde JSON formatinda .o uzantili dosyalara kaydedilebilmektedir.
+Bu yaklasim, onceden derlenip saklanmis modul kutuphanelerinin tekrar
+derleme yapilmaksizin linklenmesine olanak tanimaktadir.
+
+
+================================================================================
+BOLUM 5. GLOBAL VE EXTERN SEMBOL YONETIMI (PC 6)
+================================================================================
+
+
+5.1. .global Direktifi ve Global Sembol Tablosu
+
+Assembly kaynak kodunda ".global ETIKET" direktifi ile bir sembol
+diger modullere acilabilir hale getirilir. Assembler Pass 1 asamasinda
+bu sembolleri kaydeder; Pass 2 asamasinda ise sembol tablosundan gercek
+adresini alarak globals sozlugunu doldurur. Linker bu tablolari tum
+ObjectFile nesneleri uzerinde toplayarak birlestirmis bir global sembol
+tablosu (global_symtab) olusturur.
+
+
+5.2. .extern Direktifi ve Dis Referanslar
+
+".extern ETIKET" direktifi ile bir modülün baska bir modulde tanimli
+sembole ihtiyac duydugu beyan edilir. Assembler Pass 2 asamasinda extern
+sembole sahip komutlari gecici olarak 0 adresiyle kodlar ve bir relocation
+kaydi olusturur. Linker asamasinda bu komutlarin ilgili alanlari gercek
+adreslerle yamalar.
+
+
+5.3. Sembol Cakisma ve Eksiklik Kontrolu
+
+  Cakisma  : Ayni global etiket birden fazla ObjectFile'da tanimlanmissa
+             LinkerError uretilir; linkleme durdurulur.
+  Eksiklik : Bir extern sembol hicbir ObjectFile'in globals tablosunda
+             bulunamazsa "Cozumlenemeyen extern sembol" hatasi uretilir.
+
+Bu iki kontrol linker'in dogruluk guvenceleridir (PC6).
+
+
+================================================================================
+BOLUM 6. LINKLEME ALGORITMASI (PC 6)
+================================================================================
+
+Gelistirilen Linker, asagidaki dort adimlik algoritmayı uygulamaktadir:
+
+
+6.1. Adim 1 — Section Yerlestirme (Layout)
+
+Her ObjectFile'in .text ve .data section'lari sirasiyla birlestirilir.
+Linker script'ten alinan text_base ve data_base adresleri baslangic
+noktasi olarak kullanilir.
+
+  BASLA: cursor = text_base
+  HER OBJECTFILE ICIN:
+    1. offset = cursor - section[0].adres
+    2. Tum kelimeleri (offset + orijinal_adres) ile yeniden adresle
+    3. link_map'e kaydet
+    4. cursor = son_adres + son_boyut (4-byte hizali)
+
+.data section ayni prensiple data_base adresinden baslar.
+
+
+6.2. Adim 2 — Global Sembol Tablolarinin Birlestirilmesi
+
+Her ObjectFile icin text_offset ve data_offset hesaplanir. Her global
+sembol orijinal adresine gore hangi section'da oldugu belirlenir ve
+ilgili offset eklenerek gercek adresine donusturulur. Cakisan tanimlar
+hata olarak raporlanir.
+
+
+6.3. Adim 3 — Extern Bagimliliklarin Kontrolu
+
+Tum ObjectFile nesnelerinin externs listesindeki her sembol
+global_symtab'ta aranir. Bulunamayanlar "Cozumlenemeyen extern" hatasi
+olarak raporlanir ve linkleme durdurulur.
+
+
+6.4. Adim 4 — Relocation (Adres Yamalama)
+
+Her ObjectFile'in relocations listesindeki her kayit icin:
+  1. Sembolun gercek adresi global_symtab'tan alinir.
+  2. Komutun yeni adresi (offset sonrasi) hesaplanir.
+  3. _patch_word() ile ilgili bit alanlari gercek adresle yamlanir.
+  4. Yamanmis kelime linked_code listesine kaydedilir.
+
+
+6.5. Algoritma Karmasiklik Ozeti
+
+  N = toplam kelime sayisi, S = toplam sembol sayisi, R = relocation sayisi
+
+  Section layout  : O(N)
+  Sembol birlestirme: O(S)
+  Relocation      : O(R)
+  Genel linker    : O(N + S + R)
+
+
+================================================================================
+BOLUM 7. RELOCATION MEKANIZMASI (PC 6)
+================================================================================
+
+
+7.1. Relocation Tipleri
+
+RV32I komut seti farkli komut formatlari icin farkli bit alani
+yerlesimlerine sahiptir. Bu nedenle relocation islemi dort tipte
+gerceklestirilmektedir:
+
+  J   — JAL komutu (J-type, 20-bit signed offset, ±1 MB menzil)
+  B   — Branch komutlari (B-type, 12-bit signed offset, ±4 KB menzil)
+  I   — Load/JALR komutlari (I-type, 12-bit mutlak adres alt bitleri)
+  ABS — Mutlak adres (32-bit tam adres yamalama)
+
+
+7.2. J-Type (JAL) Relocation Hesabi
+
+JAL komutunun imm alani 20-bit PC-bagil (PC-relative) signed offset
+tasir. Bit alani dagitimi RISC-V spesifikasyonuna uygun sekilde
+gerceklestirilmektedir:
+
+  offset  = hedef_adres - komut_adresi
+  imm20   = offset[20]
+  imm1910 = offset[19:12]
+  imm11   = offset[11]
+  imm101  = offset[10:1]
+  imm_field = (imm20 << 19) | (imm101 << 9) | (imm11 << 8) | imm1910
+  yeni_komut = (eski_komut & 0x00000FFF) | (imm_field << 12)
+
+
+7.3. B-Type (Branch) Relocation Hesabi
+
+Branch komutlarinin imm alani 12-bit PC-bagil signed offset tasir:
+
+  offset = hedef_adres - komut_adresi
+  imm12  = offset[12]
+  imm11  = offset[11]
+  imm105 = offset[10:5]
+  imm41  = offset[4:1]
+  yeni_komut = (eski_komut & 0x01FFF07F) |
+               (imm12 << 31) | (imm105 << 25) |
+               (imm41  << 8) | (imm11   << 7)
+
+
+7.4. I-Type ve ABS Relocation
+
+  I-type  : imm[11:0] alani hedef adresin alt 12-bit'i ile yamlanir.
+  ABS     : Tam 32-bit kelime, hedef adresin tam degeriyle degistirilir;
+            .word direktifleri veya veri isaretcileri icin kullanilir.
+
+
+================================================================================
+BOLUM 8. LINKER SCRIPT TASARIMI (PC 6)
+================================================================================
+
+
+8.1. .ld Dosya Formati
+
+Gelistirilen linker, GNU ld tarzı ama sadeleştirilmis bir script formatini
+desteklemektedir. Desteklenen sozdizimi:
+
+  /* yorum */
+  # yorum
+
+  MEMORY {
+      text_base = 0x00000000;   /* .text section baslangici (BRAM) */
+      data_base = 0x00010000;   /* .data section baslangici (RAM)  */
+  }
+
+  Her iki alan da opsiyoneldir; eksik alanlar varsayilan degerle doldurulur.
+
+
+8.2. text_base ve data_base Adresleme
+
+text_base: .text section'inin (makine kodu) yerlesecegi baslangic adresi.
+           PicoRV32 icin genellikle 0x00000000 (BRAM baslangici).
+
+data_base: .data section'inin (degiskenler, diziler) baslangic adresi.
+           PicoRV32 icin genellikle 0x00010000 (ayri RAM bolumu).
+
+LinkerScript sinifi bu iki adresi dogruladiktan sonra (esit olma
+kontrolu, 4-byte hizalama kontrolu) Linker nesnesine aktarir. (PC6)
+
+
+8.3. Varsayilan Bellek Duzenlemesi
+
+  Adres Araligi      Bolum    Aciklama
+  0x00000000 - ...   .text    Calistirilabilir makine kodu (BRAM)
+  0x00010000 - ...   .data    Degiskenler ve baslangic verileri (RAM)
+
+Bu duzen PicoRV32 cekirdeginin varsayilan bellek haritasiyla
+uyumludur. Farkli donanim platformlari icin memory.ld dosyasinin
+duzenlemesi yeterlidir.
+
+
+================================================================================
+BOLUM 9. BELLEK YERLESIMI VE FPGA ENTEGRASYONU (PC 1)
+================================================================================
+
+
+9.1. .text ve .data Bolumlerinin Ayristirilmasi
+
+Assembly kaynak kodunda ".text" direktifi makine kodu bolumunu, ".data"
+direktifi ise veri bolumunu baslatir. ObjectFile olusturma asamasinda
+assembler ciktisindaki her (adres, deger, boyut) uclusu bu iki section'a
+ayristirilir: ".data" direktifinin adresinden buyuk veya esit adrese sahip
+kelimeler .data section'ina, digerleri .text section'ina atanir.
+
+Linker bu iki section'i bagimsiz olarak text_base ve data_base
+adreslerinden itibaren belleğe yerlestirir.
+
+
+9.2. $readmemh (.mem) Cikti Formati
+
+Xilinx Vivado ve Intel Quartus gibi FPGA gelistirme ortamlari, BRAM
+baslangic degerlerini $readmemh sistem gorevi ile yuklenen .mem
+dosyalarindan okumaktadir. Gelistirilen linker bu formati dogrudan
+uretmektedir:
+
+  @00000000      — baslangic adresi (kelime adresi, byte degil)
+  00500513       — 1. komut (32-bit hex)
+  00100593       — 2. komut
+  ...
+  @00004000      — adres atlama (bosluklu bellek icin)
+  00000000       — veri kelimesi
+
+Cikti get_mem_output() metodu ile uretilir.
+
+
+9.3. BRAM Initialization Yontemi
+
+.mem dosyasi uretildikten sonra FPGA entegrasyonu su adimlarla
+tamamlanmaktadir:
+  1. Linker ciktisi olarak .mem dosyasi elde edilir.
+  2. Vivado'da BRAM IP'sine "Memory Initialization File" olarak atanir.
+  3. Sentez ve implementasyon calistirilir.
+  4. Bitstream FPGA'ya yuklenir.
+  5. PicoRV32 cekirdegi sifirlanarak program calistirililir.
+
+
+9.4. PicoRV32 Uzerinde Calistirma
+
+Demo uygulama olarak Fibonacci dizi hesaplama programi secilmistir. Bu
+program iki ayri assembly modulu (main.asm ve math.asm) uzerinden coklu
+dosya linkleme senaryosunu kapsamli bicimde test etmektedir:
+
+  main.asm : Ana dongu, FIB_STEP fonksiyonunu extern olarak cagirır.
+             FIB_ARR dizisine sonuclari yazar. (.global MAIN)
+  math.asm : FIB_STEP fonksiyonunu tanimlar.
+             x10 = x10 + x11 islemini gerceklestirir. (.global FIB_STEP)
+
+  Linkleme sonrasi:
+    text=0x00000000  MAIN + FIB_STEP komutlari sirayla yerlesir
+    data=0x00010000  FIB_ARR dizisi (10 x .word 0)
+
+[BURAYA: FPGA gosterimi ekran goruntusu veya sonuc tablosu eklenecek]
+
+
+================================================================================
+BOLUM 10. KULLANILAN VERI YAPILARI (PC 6)
+================================================================================
+
+Linker mimarisinde Python'un yerlesik veri yapilari ile proje ozgu sinif
+yapilari kullanilmistir:
+
+
+10.1. Sozluk (Dictionary) Yapilari
+
+  global_symtab : dict   — {etiket: gercek_adres}
+                           Tum ObjectFile'lardan derlenen bilesik global
+                           sembol tablosu. O(1) amortize erisim maliyeti.
+
+  word_index    : dict   — {adres: linked_code_indeksi}
+                           Relocation asamasinda yamalanacak kelimenin
+                           linked_code listesindeki konumunu O(1) ile bulur.
+
+  symtab        : dict   — Her ObjectFile'in lokal sembol tablosu.
+                           .text ve .data section ayriminda kullanilir.
+
+
+10.2. Liste (List) Yapilari
+
+  linked_code   : list   — [(adres, kelime, boyut)]
+                           Linklenmis ve yamalanmis tum makine kodu.
+
+  link_map      : list   — [(modul, section, orijinal_adres, gercek_adres)]
+                           Her kelimenin linkleme oncesi ve sonrasi adresini
+                           tutar; link map ciktisi icin kullanilir.
+
+  relocations   : list   — [(adres, etiket, tip)]
+                           Her ObjectFile'in cozumlenmemis referans listesi.
+
+
+10.3. Ozel Sinif Yapilari (Custom Objects)
+
+  ObjectFile (dataclass) : Assembly ciktisini linker'a tasıyan yapisal
+                           konteyner. from_assembler() fabrika metodu ile
+                           Assembler nesnesinden otomatik uretilir.
+
+  LinkerScript           : .ld dosyasini ayristiran ve text_base/data_base
+                           adreslerini dogrulayan sinif.
+
+  Linker                 : Ana linkleme motorudur. link(), get_hex_output(),
+                           get_mem_output(), get_link_map(), get_listing()
+                           metotlarini icerir.
+
+
+================================================================================
+BOLUM 11. TEST SENARYOLARI VE SONUCLAR (PC 7)
+================================================================================
+
+Gelistirilen linker yaziliminin dogrulugunu ve guvenilirligini kanitlamak
+amaci ile uc katmanli bir test stratejisi uygulanmistir.
+
+
+11.1. Birim Testleri
+
+  _layout_section testi  : Tek ObjectFile ile section yerlestirme,
+                           baslangic adres ve offset hesaplarinin dogrulugu.
+
+  Sembol birlestirme     : Iki ObjectFile'da cakismayan global semboller
+                           dogru adresiyle global_symtab'a eklenmeli.
+
+  Cakisma testi          : Ayni global etiketin iki farkli modülde
+                           tanimlanmasi LinkerError uretmeli.
+
+  Eksik extern testi     : Hicbir modülde tanimlanmayan extern sembol
+                           "Cozumlenemeyen extern" hatasi uretmeli.
+
+
+11.2. Entegrasyon Testleri — Coklu Dosya Linkleme
+
+  Senaryo 1 — Fibonacci (main.asm + math.asm):
+    main.asm icindeki "jal x1, FIB_STEP" komutu linker tarafindan
+    dogru PC-bagil ofset ile yamalanmalidir. Linkleme sonrasi
+    linked_code icindeki JAL komutunun bit alanlari dogrulanmistir.
+
+  Senaryo 2 — Tek dosya (assembler modu):
+    Tek dosya secildiginde linker devre disi kalir, assembler ciktisi
+    dogrudan gosterilir. Mevcut extern sembollerin uyarisi konsola yazilir.
+
+  Senaryo 3 — Hatali extern:
+    Tanimlanmamis extern sembol iceren iki dosya linker'a verildiginde
+    hata mesaji uretilir ve linked_code bos kalmalidir.
+
+[BURAYA: Test tablosu ve sonuclari eklenecek]
+
+
+11.3. FPGA Dogrulama Testleri
+
+Fibonacci programinin FPGA uzerinde dogru calisip calismadigini
+dogrulamak icin FIB_ARR dizisinin bellek icerigi incelenmistir.
+Beklenen dizi: 0, 1, 1, 2, 3, 5, 8, 13, 21, 34
+
+[BURAYA: FPGA bellek okuma ekran goruntusu eklenecek]
+
+
+================================================================================
+BOLUM 12. ALGORITMA KARMASIKLIGI ANALIZI (PC 6)
+================================================================================
+
+
+12.1. Olcum Yontemi ve Metodoloji
+
+Linker'in performans analizi icin Python'un time.perf_counter() modulu
+kullanilarak farkli sayida ObjectFile (N = 2, 5, 10, 20, 50) ile
+linkleme suresi olculmustur. Her test 5 kez tekrarlanmis; ortalama,
+minimum, maksimum sureler ve standart sapma hesaplanmistir.
+
+
+12.2. Zaman Karmasikligi Analizi
+
+  Section Layout     (_layout_section):
+    Her kelime bir kez islenir. N toplam kelime sayisi olmak uzere O(N).
+
+  Sembol Birlestirme:
+    Her ObjectFile'in her global sembolu bir kez islenir.
+    S toplam sembol sayisi olmak uzere O(S).
+
+  word_index dict olusturma:
+    linked_code uzerinde tek gecis: O(N).
+
+  Relocation yamalama:
+    R toplam relocation kaydi olmak uzere her kayit icin O(1) dict erisimi.
+    Toplam: O(R).
+
+  Genel linker karmasikligi: O(N + S + R)
+    N, S ve R programin buyukluguna dogrusal olarak arttigi icin
+    linker toplamda O(n) zaman karmasikligina sahiptir.
+
+
+12.3. Alan Karmasikligi Analizi
+
+  linked_code listesi : O(N) — tum kelimeler bellekte tutulur.
+  global_symtab       : O(S) — tum global semboller.
+  word_index          : O(N) — adres-indeks eslemesi.
+  link_map            : O(N) — her kelime icin bir kayit.
+
+  Genel alan karmasikligi: O(N + S)
+
+
+================================================================================
+BOLUM 13. MUHENDISLIK COZUMUNUN ETKILERI (PC 8)
+================================================================================
+
+
+13.1. Teknolojik Etki
+
+RISC-V, akademik ve endustriyel uygulamalarda hizla benimsenen acik
+kaynakli bir komut seti mimarisidir. Gelistirilen linker, herhangi bir
+lisans kisitlamasi olmaksizin RV32I tabanli sistemlere yazilim gelistirme
+altyapisi saglamaktadir. .mem cikti formatinin dogrudan FPGA ortamina
+aktarilabilmesi, gömulü sistem yazilim gelistirme dongusu icin donanima
+en yakin yazilim katmanini kapatmaktadir. (PC8)
+
+
+13.2. Ekonomik Etki
+
+Ticari linker ve gelistirme araclarinin lisans maliyetleri gömulü sistem
+projelerinde onemli bir engel olusturabilmektedir. Gelistirilen acik
+kaynakli linker, PicoRV32 tabanli projelerde bu maliyeti sifira
+indirmektedir. Ogretim amacli kullanim durumunda ise ticari araclara olan
+bagimliliği azaltarak egitim maliyetlerini dusurme potansiyeline sahiptir.
+
+
+13.3. Toplumsal ve Egitimsel Etki
+
+Bu proje; bilgisayar mimarisi, sistem programlama, linker tasarimi ve
+FPGA entegrasyonu konularinda teorik bilginin uygulamaya donusturuldugu
+kapsamli bir muhendislik deneyimi sunmaktadir. Acik kaynak olarak
+paylasimi (GitHub) durumunda dunya genelinde bu konulari ogrenen
+ogrencilere referans materyal niteligini tasiyabilir. (PC8)
+
+
+13.4. Guvenlik ve Etik Boyut
+
+Linker, urettigi ciktinin dogrulugunu kapsamli hata kontrol mekanizmalari
+ile garanti altina almaktadir. Cakisan sembol tanimlari, cozumsuz extern
+referanslar ve hizalama hatalari linkleme oncesinde acik hata mesajlariyla
+kullaniciya bildirilir. Bu yaklasim, yanlis makine kodu uretiminin onune
+gecerek guvenli ve ongorebirlir sistem davranisi saglamaktadir. Kullanilan
+tum dissal referanslar kaynakca bolumunde belirtilmistir. (PC9, PC10)
+
+
+================================================================================
+BOLUM 14. TAKIM CALISMASI VE IS BOLUMU (PC 12, PC 13)
+================================================================================
+
+
+14.1. Modul Bazli Is Dagilimi
+
+  core/object_file.py  : ObjectFile veri yapisi, H/D/R/T/M/E kayit formati,
+                         JSON serilestirme / seri-cozumleme
+  core/linker_script.py: .ld dosya ayristirici, adres dogrulama, varsayilan
+                         deger yonetimi
+  core/linker.py       : Section layout, sembol birlestirme, extern kontrolu,
+                         relocation yamalama, .hex/.mem/.listing cikti uretimi
+  gui/components/      : Proje paneli, coklu dosya secimi, linker script
+  project_panel.py       editoru, export butonlari
+  gui/app.py           : Build akisi entegrasyonu, asagidaki cikti sekmeleri:
+                         Hex, Listing, Semboller, Object, Link Map, .mem
+
+[BURAYA: Takim uyeleri ve modul sorumluluk tablosu eklenecek]
+
+
+14.2. Koordinasyon ve Test Sureci
+
+Moduller birbirinden bagimsiz test edilmis (birim testler), ardindan
+coklu dosya senaryolari uzerinden entegrasyon testleri uygulanmistir.
+Surumu yonetimi icin Git versiyon kontrol sistemi kullanilmistir.
+Linker ciktilari https://riscvasm.lucasteske.dev/ referans aracı ile
+karsilastirilarak dogrulanmistir. (PC12, PC13, PC17)
+
+
+================================================================================
+BOLUM 15. SONUC VE DEGERLENDIRME
+================================================================================
+
+
+15.1. Basarilar
+
+Bu proje kapsaminda asagidaki hedefler basariyla gerceklestirilmistir:
+
+  * Coklu .asm dosyasini girdi olarak alan, .text ve .data section'larini
+    ayristiran ve bellek duzenini linker script'e gore yapillandiran
+    tam islevsel bir RV32I linker gelistirilmistir.
+
+  * J-type, B-type, I-type ve ABS relocation tipleri desteklenerek
+    modüller arasi fonksiyon cagrisi (jal x1, FIB_STEP) basariyla
+    cozumlenmistir.
+
+  * Linker ciktisi dogrudan FPGA BRAM yukleme formatinda (.mem)
+    uretilmis; Fibonacci demo programi PicoRV32 uzerinde calistirilmistir.
+
+  * Grafiksel arayuz uzerinden proje yonetimi, coklu dosya secimi,
+    linker script duzenleme ve export islemleri desteklenmistir.
+
+
+15.2. Tespit Edilen Sinirliliklar
+
+  * Mevcut linker script formati yalnizca text_base ve data_base
+    adreslerini desteklemektedir; LENGTH, ALIGN gibi GNU ld direktifleri
+    kapsam disi birakilmistir.
+
+  * Dinamik linkleme (shared library) desteklenmemektedir; bu tasarim
+    karari gömülü sistem hedef kitlesinin gereksinimleriyle uyumludur.
+
+
+15.3. Gelecek Calisma Onerileri
+
+  * 3. proje kapsaminda UART uzerinden RAM'e nesne kodu yukleme icin
+    bootloader entegrasyonu planlanmaktadir.
+
+  * Coklu relocation tipi icerebilecek C derleyici ciktisiyla uyumluluk
+    test edilebilir.
+
+
+================================================================================
+KAYNAKCA
+================================================================================
+
+[1] Patterson, D. A., & Hennessy, J. L. (2017). Computer Organization and
+    Design RISC-V Edition: The Hardware Software Interface. Morgan Kaufmann.
+
+[2] Leland L. Beck. (1996). System Software: An Introduction to Systems
+    Programming (3rd ed.). Addison-Wesley.
+
+[3] Linkers and Loaders, John R. Levine. (1999). Morgan Kaufmann.
+
+[4] RISC-V International. (2019). The RISC-V Instruction Set Manual,
+    Volume I: Unprivileged ISA, Version 20191213.
+    https://riscv.org/technical/specifications/
+
+[5] Wolf, C. (2015). PicoRV32 - A Size-Optimized RISC-V CPU.
+    https://github.com/YosysHQ/picorv32
+
+================================================================================
