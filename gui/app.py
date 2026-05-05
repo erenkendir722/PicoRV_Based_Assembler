@@ -62,13 +62,14 @@ class RV32IAssemblerGUI:
                      font_cfg=("Segoe UI", 9), padx=10, pady=6
                      ).pack(side=tk.RIGHT, padx=1)
 
-        # ── Gövde ──
-        body = tk.Frame(self.root, bg=Theme.BG)
-        body.pack(fill=tk.BOTH, expand=True)
+        # ── Gövde (Resizable Panes) ──
+        self.paned = tk.PanedWindow(self.root, orient=tk.HORIZONTAL,
+                                   bg=Theme.BORDER, sashwidth=2, sashrelief=tk.FLAT)
+        self.paned.pack(fill=tk.BOTH, expand=True)
 
         # Sol: Proje paneli
         self.project = ProjectPanel(
-            body,
+            self.paned,
             on_build=self._on_build,
             on_file_select=self._open_file_in_editor)
         self.project.export_mem_cb    = self._export_mem
@@ -77,14 +78,16 @@ class RV32IAssemblerGUI:
         self.project.get_editor_code  = lambda: self.editor.get_code()
         self.project.get_editor_name  = lambda: (
             os.path.basename(self._editor_path) if self._editor_path else "editör")
+        self.paned.add(self.project.frame, width=260, minsize=200)
 
         # Orta: Editör
-        editor_wrap = tk.Frame(body, bg=Theme.EDITOR_BG)
-        editor_wrap.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        editor_wrap = tk.Frame(self.paned, bg=Theme.EDITOR_BG)
         self.editor = EditorPanel(editor_wrap)
+        self.paned.add(editor_wrap, stretch="always", minsize=400)
 
         # Sağ: Çıktı sekmeleri
-        self.output = OutputTabsPanel(body)
+        self.output = OutputTabsPanel(self.paned)
+        self.paned.add(self.output.frame, width=380, minsize=300)
 
         # Alt: Konsol
         self.console = ConsolePanel(self.root)

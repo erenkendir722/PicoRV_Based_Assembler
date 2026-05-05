@@ -12,7 +12,7 @@ class Theme:
     # Vurgu renkleri
     ACCENT    = "#2F81F7"   # mavi — birincil aksyon
     ACCENT_H  = "#1F6CE0"   # mavi hover
-    ACCENT2   = "#58A6FF"   # açık mavi — başlık / etiket
+    ACCENT2   = "#79C0FF"   # daha parlak mavi
     GREEN     = "#3FB950"   # başarı
     RED       = "#F85149"   # hata
     YELLOW    = "#D29922"   # uyarı
@@ -21,8 +21,8 @@ class Theme:
 
     # Metin
     FG        = "#E6EDF3"   # ana metin
-    FG2       = "#7D8590"   # soluk metin
-    FG3       = "#8B949E"   # placeholder / pasif
+    FG2       = "#B1BAC4"   # soluk metin -> daha belirgin gri
+    FG3       = "#9BA4B0"   # placeholder / pasif -> daha belirgin gri
 
     # Editör
     EDITOR_BG = "#0D1117"
@@ -46,7 +46,7 @@ class Theme:
         style.configure("TNotebook.Tab",
                         background=cls.BG2,
                         foreground=cls.FG2,
-                        padding=[16, 7],
+                        padding=[10, 7],
                         font=("Segoe UI", 9),
                         borderwidth=0,
                         relief="flat")

@@ -5,12 +5,8 @@ from gui.theme import Theme
 
 class OutputTabsPanel:
     def __init__(self, parent):
-        self.frame = tk.Frame(parent, bg=Theme.BG2, width=440)
-        self.frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.frame = tk.Frame(parent, bg=Theme.BG2, width=520)
         self.frame.pack_propagate(False)
-
-        # İnce sol kenarlık
-        tk.Frame(self.frame, bg=Theme.BORDER, width=1).pack(side=tk.LEFT, fill=tk.Y)
 
         inner = tk.Frame(self.frame, bg=Theme.BG2)
         inner.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -42,11 +38,11 @@ class OutputTabsPanel:
                        spacing1=1, spacing3=1)
 
         # Satır renklendirme tagları
-        text.tag_config("addr",    foreground=Theme.FG3)
+        text.tag_config("addr",    foreground=Theme.FG2)
         text.tag_config("hex",     foreground=Theme.ACCENT2)
         text.tag_config("section", foreground=Theme.PURPLE, font=("Consolas", 10, "bold"))
         text.tag_config("label",   foreground=Theme.YELLOW)
-        text.tag_config("sep",     foreground=Theme.BORDER)
+        text.tag_config("sep",     foreground=Theme.FG3)
 
         sy = ttk.Scrollbar(frame, command=text.yview)
         sy.pack(side=tk.RIGHT, fill=tk.Y)

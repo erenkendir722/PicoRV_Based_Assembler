@@ -2,6 +2,8 @@
 # RV32I Assembler - Pass 1 + Pass 2
 # Kaynak kodu → Object code üretimi
 
+from typing import Optional
+
 from .asm_parser import Parser, parse_immediate, is_label_ref
 from .symbol_table import SymbolTable
 from .encoder import Encoder, EncoderError
@@ -201,7 +203,7 @@ class Assembler:
             return default
         return val
 
-    def _find_extern_ref(self, operands: list) -> str | None:
+    def _find_extern_ref(self, operands: list) -> Optional[str]:
         """Operandlar arasında extern sembol varsa döndürür."""
         for op in operands:
             if op in self.externs:

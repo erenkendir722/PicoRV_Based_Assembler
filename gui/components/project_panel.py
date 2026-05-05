@@ -31,11 +31,7 @@ class ProjectPanel:
         self.script = LinkerScript.default()
 
         self.frame = tk.Frame(parent, bg=Theme.BG2, width=240)
-        self.frame.pack(side=tk.LEFT, fill=tk.Y)
         self.frame.pack_propagate(False)
-
-        # İnce sağ kenarlık
-        tk.Frame(parent, bg=Theme.BORDER, width=1).pack(side=tk.LEFT, fill=tk.Y)
 
         self._build_ui()
 
