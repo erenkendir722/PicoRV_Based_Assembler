@@ -17,5 +17,5 @@
 
 FIB_STEP:
     add   x10, x10, x11     # a0 = önceki + şimdiki  (= fib[n])
-    jalr  x0,  x10        # return (ra = x1)
+    jalr  x0,  x1, 0      # return (ra = x1)
 

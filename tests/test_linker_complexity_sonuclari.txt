@@ -1,0 +1,100 @@
+Tarih : 2026-05-08 17:28:02
+Dosya : test_linker_complexity.py
+=================================================================
+╔══════════════════════════════════════════════════════════╗
+║     RV32I LİNKER — KARMAŞIKLIK ANALİZİ TESTİ           ║
+║     Her olcum 5 tekrar | Python time.perf_counter()  ║
+╚══════════════════════════════════════════════════════════╝
+
+━━━ DENEY 1: Tek Dosya — Artan Komut Sayısı ━━━
+  Hipotez: Linkleme suresi N (komut sayisi) ile dorusal artar => O(N)
+
+  n=10 komut                   N=10     ort=  0.091ms  min=  0.057ms  max=  0.201ms  std= 0.062ms
+  n=50 komut                   N=50     ort=  0.231ms  min=  0.221ms  max=  0.252ms  std= 0.012ms
+  n=100 komut                  N=100    ort=  0.448ms  min=  0.436ms  max=  0.462ms  std= 0.010ms
+  n=200 komut                  N=200    ort=  0.913ms  min=  0.874ms  max=  1.009ms  std= 0.057ms
+  n=500 komut                  N=500    ort=  2.185ms  min=  2.114ms  max=  2.272ms  std= 0.063ms
+  n=1000 komut                 N=1000   ort=  4.663ms  min=  4.551ms  max=  4.782ms  std= 0.098ms
+  n=2000 komut                 N=2000   ort=  9.407ms  min=  8.941ms  max= 10.106ms  std= 0.533ms
+
+  N orani: 200x  |  Sure orani: 103.0x
+  O(N) doğrusallık: ✓ ONAYLANDI
+
+━━━ DENEY 2: Artan Dosya Sayısı (Sabit Komut/Dosya) ━━━
+  Hipotez: Dosya sayisi arttikca sure O(N) artmali
+
+  2 dosya x 10 komut           N=20     ort=  0.111ms  min=  0.101ms  max=  0.140ms  std= 0.016ms
+  3 dosya x 10 komut           N=30     ort=  0.151ms  min=  0.146ms  max=  0.161ms  std= 0.006ms
+  5 dosya x 10 komut           N=50     ort=  0.249ms  min=  0.241ms  max=  0.259ms  std= 0.008ms
+  8 dosya x 10 komut           N=80     ort=  0.398ms  min=  0.388ms  max=  0.403ms  std= 0.007ms
+  10 dosya x 10 komut          N=100    ort=  0.526ms  min=  0.494ms  max=  0.630ms  std= 0.059ms
+  15 dosya x 10 komut          N=150    ort=  0.764ms  min=  0.729ms  max=  0.816ms  std= 0.033ms
+  20 dosya x 10 komut          N=200    ort=  0.990ms  min=  0.974ms  max=  1.017ms  std= 0.019ms
+
+  Dosya orani: 10x  |  Sure orani: 8.9x
+  O(N) doğrusallık: ✓ ONAYLANDI
+
+━━━ DENEY 3: Artan Global Sembol Sayısı ━━━
+  Hipotez: Sembol sayisi S ile sure O(S) artmali
+
+  s=5 sembol                   N=5      ort=  0.042ms  min=  0.038ms  max=  0.051ms  std= 0.005ms
+  s=10 sembol                  N=10     ort=  0.082ms  min=  0.069ms  max=  0.120ms  std= 0.022ms
+  s=20 sembol                  N=20     ort=  0.159ms  min=  0.132ms  max=  0.264ms  std= 0.058ms
+  s=50 sembol                  N=50     ort=  0.332ms  min=  0.325ms  max=  0.349ms  std= 0.010ms
+  s=100 sembol                 N=100    ort=  0.719ms  min=  0.674ms  max=  0.814ms  std= 0.056ms
+  s=200 sembol                 N=200    ort=  1.562ms  min=  1.481ms  max=  1.624ms  std= 0.066ms
+
+  Sembol orani: 40x  |  Sure orani: 37.1x
+  O(S) doğrusallık: ✓ ONAYLANDI
+
+━━━ DENEY 4: Artan Relocation Sayısı ━━━
+  Hipotez: Relocation kaydi R ile sure O(R) artmali
+
+  r=1 relocation               N=1      ort=  0.044ms  min=  0.035ms  max=  0.057ms  std= 0.009ms
+  r=2 relocation               N=2      ort=  0.064ms  min=  0.058ms  max=  0.072ms  std= 0.005ms
+  r=5 relocation               N=5      ort=  0.121ms  min=  0.117ms  max=  0.128ms  std= 0.004ms
+  r=10 relocation              N=10     ort=  0.228ms  min=  0.221ms  max=  0.235ms  std= 0.006ms
+  r=20 relocation              N=20     ort=  0.486ms  min=  0.429ms  max=  0.660ms  std= 0.098ms
+
+  Relocation orani: 20x  |  Sure orani: 11.0x
+  O(R) doğrusallık: ✓ ONAYLANDI
+
+═════════════════════════════════════════════════════════════════
+  RAPOR İÇİN ÖZET TABLO
+═════════════════════════════════════════════════════════════════
+  Deney                          Girdi    Süre (ms)
+  ────────────────────────────────────────────────────────────
+  DEY1: Tek dosya, N komut       10       0.091
+  DEY1: Tek dosya, N komut       50       0.231
+  DEY1: Tek dosya, N komut       100      0.448
+  DEY1: Tek dosya, N komut       200      0.913
+  DEY1: Tek dosya, N komut       500      2.185
+  DEY1: Tek dosya, N komut       1000     4.663
+  DEY1: Tek dosya, N komut       2000     9.407
+  ────────────────────────────────────────────────────────────
+  DEY2: Cok dosya, N dosya       2        0.111
+  DEY2: Cok dosya, N dosya       3        0.151
+  DEY2: Cok dosya, N dosya       5        0.249
+  DEY2: Cok dosya, N dosya       8        0.398
+  DEY2: Cok dosya, N dosya       10       0.526
+  DEY2: Cok dosya, N dosya       15       0.764
+  DEY2: Cok dosya, N dosya       20       0.990
+  ────────────────────────────────────────────────────────────
+  DEY3: N global sembol          5        0.042
+  DEY3: N global sembol          10       0.082
+  DEY3: N global sembol          20       0.159
+  DEY3: N global sembol          50       0.332
+  DEY3: N global sembol          100      0.719
+  DEY3: N global sembol          200      1.562
+  ────────────────────────────────────────────────────────────
+  DEY4: N relocation             1        0.044
+  DEY4: N relocation             2        0.064
+  DEY4: N relocation             5        0.121
+  DEY4: N relocation             10       0.228
+  DEY4: N relocation             20       0.486
+═════════════════════════════════════════════════════════════════
+
+  SONUC: Tum deneylerde sure, girdi boyutuyla yaklasik
+  dogusal artmaktadir. Linker'in zaman karmasikligi O(N+S+R)
+  olarak ampirik olarak dogrulanmistir.
+

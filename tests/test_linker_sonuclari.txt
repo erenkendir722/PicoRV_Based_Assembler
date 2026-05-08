@@ -1,0 +1,55 @@
+Tarih : 2026-05-08 17:27:58
+Dosya : test_linker.py
+=======================================================
+╔══════════════════════════════════════════════════════╗
+║         RV32I LİNKER — GENEL TEST PAKETİ            ║
+╚══════════════════════════════════════════════════════╝
+
+━━━ GRUP 1: Tek Dosya Linkleme ━━━
+  ✓ [GECTİ] Tek dosya assemble
+  ✓ [GECTİ] Tek dosya link
+  ✓ [GECTİ] linked_code bos degil
+  ✓ [GECTİ] text_base 0x0 dogru
+  ✓ [GECTİ] MAIN global_symtab'ta
+  ✓ [GECTİ] MAIN adresi 0x0
+
+━━━ GRUP 2: Çoklu Dosya ve Extern Çözümleme ━━━
+  ✓ [GECTİ] main.asm assemble
+  ✓ [GECTİ] foo.asm assemble
+  ✓ [GECTİ] main extern listesi FOO iceriyor
+  ✓ [GECTİ] foo global listesi FOO iceriyor
+  ✓ [GECTİ] Linkleme basarili
+  ✓ [GECTİ] FOO global_symtab'ta
+  ✓ [GECTİ] FOO adresi > 0
+  ✓ [GECTİ] JAL opcode dogru (0x6F)
+
+━━━ GRUP 3: Hata Senaryoları ━━━
+  ✓ [GECTİ] Cakisan global sembol -> hata
+  ✓ [GECTİ] Hata mesaji 'DUP' iceriyor
+  ✓ [GECTİ] Cozumsuz extern -> assemble tamam
+  ✓ [GECTİ] Cozumsuz extern -> link hatasi
+  ✓ [GECTİ] Hata mesaji 'HAYALET' iceriyor
+
+━━━ GRUP 4: Section Adres Yerleştirme ━━━
+  ✓ [GECTİ] Adres testi assemble
+  ✓ [GECTİ] Ozel base adresiyle link
+  ✓ [GECTİ] text 0x1000'den basliyor
+  ✓ [GECTİ] data 0x5000'den basliyor
+  ✓ [GECTİ] DAT[0] = 0xDEAD
+  ✓ [GECTİ] DAT[1] = 0xBEEF
+
+━━━ GRUP 5: Fibonacci Entegrasyon Testi ━━━
+  ✓ [GECTİ] fibonacci/main.asm assemble
+  ✓ [GECTİ] fibonacci/math.asm assemble
+  ✓ [GECTİ] Fibonacci link basarili
+  ✓ [GECTİ] FIB_STEP global_symtab'ta
+  ✓ [GECTİ] MAIN global_symtab'ta
+  ✓ [GECTİ] .mem ciktisi bos degil
+  ✓ [GECTİ] .hex ciktisi bos degil
+  ✓ [GECTİ] link_map dolu
+  ✓ [GECTİ] FIB_STEP adresi MAIN'den buyuk
+
+═══════════════════════════════════════════════════════
+  TOPLAM: 34  |  GECTİ: 34  |  KALDI: 0
+═══════════════════════════════════════════════════════
+
