@@ -2,10 +2,10 @@
  *
  * Bellek Haritasi:
  *   0x00000000 — .text : makine kodu (BSRAM)
- *   0x00008000 — .data : mors tablosu + mesaj (BSRAM)
+ *   0x00000400 — .data : mors tablosu + mesaj (BSRAM)
  */
 
 MEMORY {
     text_base = 0x00000000;
-    data_base = 0x00008000;
+    data_base = 0x00000400;
 }

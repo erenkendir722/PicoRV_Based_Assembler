@@ -65,21 +65,18 @@ NEXT_CHAR:
     jal   x0, READ_CHAR         # sonraki karaktere gec
 
 MSG_END:
-    # Mesaj sonu: 3000 ms bekle sonra tekrar gonder
-    addi  sp, sp, -4
-    sw    x1, 0(sp)
+    # Mesaj sonu: LED4+LED5 yak, 3000 ms bekle, sondur, tekrar gonder
+    lui   x8, 0x2000
+    addi  x9, x0, 0x30          # bit4+bit5 = LED4+LED5
+    sw    x9, 0(x8)
 
-    # 3000 ms = addi ile dogrudan veremeyiz (12-bit limit = 2047)
-    # 3000 ms icin DELAY_MS'i iki kez cagir: 1500 + 1500
-    # Ama DELAY_MS extern degil, morse.asm'de lokal.
-    # Burada basit spin-wait dongusu kullanalim:
-    lui   x7, 0x1A              # x7 = yaklasik 3sn spin sayisi (27MHz)
+    lui   x7, 0x1A
     addi  x7, x7, 0x410
 WAIT_LOOP:
     addi  x7, x7, -1
     bne   x7, x0, WAIT_LOOP
 
-    lw    x1, 0(sp)
-    addi  sp, sp, 4
+    lui   x8, 0x2000
+    sw    x0, 0(x8)             # LED sondur
 
-    jal   x0, MSG_LOOP          # basa don, mesaji tekrar gonder
+    jal   x0, MSG_LOOP

@@ -91,8 +91,14 @@ SEND_WORD_SPACE:
     addi  sp, sp, -4
     sw    x1, 0(sp)
 
+    # kelime sonu: LED4+LED5 yak, 1400ms bekle, sondur
+    lui   x14, 0x2000
+    addi  x15, x0, 0x30           # bit4+bit5 = LED4+LED5
+    sw    x15, 0(x14)
     addi  x10, x0, 1400
     jal   x1, DELAY_MS
+    lui   x14, 0x2000
+    sw    x0, 0(x14)
 
     lw    x1, 0(sp)
     addi  sp, sp, 4
@@ -113,8 +119,8 @@ SEND_CHAR:
     sub   x11, x10, x11         # x11 = indeks (0..25)
 
     # MORSE_TABLE[indeks] adresini hesapla
-    # MORSE_TABLE = 0x00008000
-    lui   x12, 0x8              # x12 = 0x00008000
+    # MORSE_TABLE = 0x00000400 (BSRAM data base, < 0x800)
+    addi  x12, x0, 0x400        # x12 = 0x00000400
     slli  x11, x11, 2           # indeks * 4
     add   x12, x12, x11
     lw    x12, 0(x12)           # x12 = morse word
@@ -143,10 +149,14 @@ NEXT_SYM:
     jal   x0, SYMBOL_LOOP
 
 CHAR_DONE:
-    # harf sonu ek bosluk: 600ms toplam olsun, son sembol sonu zaten
-    # 200ms bosluk birakti, 400ms daha ekle
+    # harf sonu: LED5 yak, 400ms bekle, sondur
+    lui   x14, 0x2000
+    addi  x15, x0, 0x20           # bit5 = LED5
+    sw    x15, 0(x14)
     addi  x10, x0, 400
     jal   x1, DELAY_MS
+    lui   x14, 0x2000
+    sw    x0, 0(x14)              # tum LEDleri sondur
 
     lw    x1,  0(sp)
     lw    x12, 4(sp)

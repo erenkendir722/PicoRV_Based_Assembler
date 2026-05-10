@@ -1,12 +1,17 @@
 // top.v — Tang Nano 9K: PicoRV32 + BRAM + GPIO
 // Mors kodu LED sürücüsü
 // Saat: 27 MHz (Tang Nano 9K dahili osc)
-// LED0 (pin 10): mors çıkışı  GPIO @ 0x02000000 bit0
+// GPIO @ 0x02000000:
+//   bit0 = LED0 (morse sinyali)
+//   bit4 = LED4 (kelime sonu göstergesi)
+//   bit5 = LED5 (harf sonu göstergesi)
 
 module top (
     input  wire clk,        // 27 MHz
     input  wire rst_btn,    // S1 butonu (active-low)
-    output wire led_morse   // LED0
+    output wire led_morse,  // LED0 — dit/dah
+    output wire led_letter, // LED5 — harf bitti
+    output wire led_word    // LED4 — kelime bitti
 );
 
 // ── Reset ──────────────────────────────────────────────────────────────
@@ -61,18 +66,20 @@ bram_mem bram (
 // ── GPIO (0x02000000) ──────────────────────────────────────────────────
 wire gpio_sel   = (mem_addr == 32'h02000000);
 reg  gpio_ready = 0;
-reg  led_reg    = 0;
+reg [5:0] led_reg = 0;
 
 always @(posedge clk) begin
     gpio_ready <= 0;
     if (mem_valid & gpio_sel) begin
         gpio_ready <= 1;
         if (mem_wstrb[0])
-            led_reg <= mem_wdata[0];
+            led_reg <= mem_wdata[5:0];
     end
 end
 
-assign led_morse = led_reg;
+assign led_morse  = ~led_reg[0];
+assign led_letter = ~led_reg[5];
+assign led_word   = ~led_reg[4];
 
 // ── Bus mux ───────────────────────────────────────────────────────────
 assign mem_ready = bram_sel  ? bram_ready :
