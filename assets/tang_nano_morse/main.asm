@@ -27,14 +27,13 @@
 
 MAIN:
     # Yigin isaretcisini baslat (BSRAM ust siniri)
-    lui   sp, 0x8               # sp = 0x00008000 (veri bolumu baslangiç)
-    addi  sp, sp, -4            # biraz asagi cek
+    addi  sp, x0, 0x7F0         # sp = 0x7F0 (stack bolgesi)
 
 MSG_LOOP:
     # MSG_TABLE adresini x5'e yukle
-    lui   x5, 0x8               # x5 = 0x00008000 (MORSE_TABLE baslangici)
-    # MSG_TABLE = MORSE_TABLE + 26*4 = 0x8000 + 104 = 0x8068
-    addi  x5, x5, 104           # x5 = &MSG_TABLE[0]
+    # MSG_TABLE = data_base(0x400) + 26*4(MORSE_TABLE) = 0x468
+    addi  x5, x0, 0x400        # x5 = 0x400 (data base)
+    addi  x5, x5, 0x68         # x5 = 0x468 = &MSG_TABLE[0]
 
 READ_CHAR:
     lw    x10, 0(x5)            # x10 = simdiki karakter

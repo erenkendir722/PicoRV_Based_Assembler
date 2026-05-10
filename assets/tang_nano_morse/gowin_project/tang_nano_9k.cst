@@ -1,0 +1,11 @@
+// Physical Constraints — Tang Nano 9K
+// Bank 1 (3.3V): pin 52 (clk)
+// Bank 3 (1.8V): pin 3 (S1 btn), pin 10 (LED0)
+
+IO_LOC "clk"       52;   // 27 MHz oscillator — Bank 1
+IO_LOC "rst_btn"   3;    // S1 button         — Bank 3
+IO_LOC "led_morse" 10;   // LED0              — Bank 3
+
+IO_PORT "clk"       PULL_MODE=NONE  IO_TYPE=LVCMOS33;
+IO_PORT "rst_btn"   PULL_MODE=UP    IO_TYPE=LVCMOS18;
+IO_PORT "led_morse" PULL_MODE=NONE  IO_TYPE=LVCMOS18  DRIVE=8;

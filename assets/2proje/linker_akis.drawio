@@ -1,0 +1,346 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <!-- BAŞLIK -->
+    <mxCell id="100" value="RV32I Linker — Algoritma Akış Diyagramı" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="284" y="20" width="600" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- BAŞLANGIÇ -->
+    <mxCell id="2" value="BAŞLA" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="509" y="80" width="150" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- GİRDİ -->
+    <mxCell id="3" value="Girdi: ObjectFile[ ] listesi&#xa;(text, data, globals, externs, relocations)" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;size=10;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="459" y="160" width="250" height="55" as="geometry" />
+    </mxCell>
+
+    <!-- RESET -->
+    <mxCell id="4" value="_reset()&#xa;errors=[], linked_code=[], global_symtab={}, link_map=[]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="459" y="245" width="250" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- ADIM 1 BAŞLIK -->
+    <mxCell id="5" value="ADIM 1: Section Yerleştirme (_layout_section)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0a30a;fontColor=#000000;strokeColor=#BD7000;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="409" y="325" width="350" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- TEXT LAYOUT -->
+    <mxCell id="6" value=".text section'larını sırayla yerleştir&#xa;cursor = text_base&#xa;Her obj için: offset = cursor - orig_base&#xa;final_addr = addr + offset&#xa;cursor ileri al (4-byte hizalama)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="219" y="395" width="250" height="85" as="geometry" />
+    </mxCell>
+
+    <!-- DATA LAYOUT -->
+    <mxCell id="7" value=".data section'larını sırayla yerleştir&#xa;cursor = data_base&#xa;Her obj için: offset = cursor - orig_base&#xa;final_addr = addr + offset&#xa;cursor ileri al (4-byte hizalama)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="699" y="395" width="250" height="85" as="geometry" />
+    </mxCell>
+
+    <!-- ADIM 2 BAŞLIK -->
+    <mxCell id="8" value="ADIM 2: Global Sembol Tablosu Birleştirme" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0a30a;fontColor=#000000;strokeColor=#BD7000;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="409" y="510" width="350" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- GLOBAL SYMTAB DÖNGÜ -->
+    <mxCell id="9" value="Her obj için globals'ı dolaş&#xa;orig_addr → _relocate_addr() → final_addr&#xa;label zaten var mı?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="459" y="580" width="250" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- ÇAKIŞMA KARAR -->
+    <mxCell id="10" value="Çakışan&#xa;sembol?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="499" y="668" width="170" height="70" as="geometry" />
+    </mxCell>
+
+    <!-- HATA 1 -->
+    <mxCell id="11" value="errors.append(&#xa;'Çakışan global sembol')" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="730" y="678" width="180" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- SYMTAB EKLE -->
+    <mxCell id="12" value="global_symtab[label] = final_addr" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="259" y="678" width="200" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- HATA KONTROL 1 -->
+    <mxCell id="13" value="errors var mı?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="499" y="758" width="170" height="70" as="geometry" />
+    </mxCell>
+
+    <!-- ADIM 3 BAŞLIK -->
+    <mxCell id="14" value="ADIM 3: Extern Bağımlılık Kontrolü" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0a30a;fontColor=#000000;strokeColor=#BD7000;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="409" y="858" width="350" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- EXTERN KONTROL -->
+    <mxCell id="15" value="Her obj'in externs listesini dolaş&#xa;Her sembol global_symtab'da var mı?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="459" y="928" width="250" height="55" as="geometry" />
+    </mxCell>
+
+    <!-- EXTERN KARAR -->
+    <mxCell id="16" value="Sembol&#xa;bulundu mu?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="499" y="1010" width="170" height="70" as="geometry" />
+    </mxCell>
+
+    <!-- HATA 2 -->
+    <mxCell id="17" value="errors.append(&#xa;'Çözümlenemeyen extern')" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="730" y="1020" width="180" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- HATA KONTROL 2 -->
+    <mxCell id="18" value="errors var mı?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="499" y="1100" width="170" height="70" as="geometry" />
+    </mxCell>
+
+    <!-- ADIM 4 BAŞLIK -->
+    <mxCell id="19" value="ADIM 4: Relocation (Komut Yaması)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0a30a;fontColor=#000000;strokeColor=#BD7000;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="409" y="1200" width="350" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- ALL WORDS -->
+    <mxCell id="20" value="all_words = text_words + data_words&#xa;word_index = {addr: index} haritası kur" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="459" y="1270" width="250" height="55" as="geometry" />
+    </mxCell>
+
+    <!-- RELOCATION DÖNGÜ -->
+    <mxCell id="21" value="Her obj'in relocations'ını dolaş&#xa;(orig_addr, label, rtype)&#xa;final_sym_addr = global_symtab[label]&#xa;instr_addr = _relocate_addr(orig_addr)&#xa;idx = word_index[instr_addr]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="459" y="1355" width="250" height="90" as="geometry" />
+    </mxCell>
+
+    <!-- PATCH WORD -->
+    <mxCell id="22" value="_patch_word(old_word, instr_addr, final_sym_addr, rtype)&#xa;J-type → JAL imm20 alanı güncelle&#xa;B-type → Branch imm13 alanı güncelle&#xa;I-type → imm12 alanı güncelle&#xa;ABS → doğrudan adres" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="459" y="1475" width="250" height="90" as="geometry" />
+    </mxCell>
+
+    <!-- HATA KONTROL 3 -->
+    <mxCell id="23" value="errors var mı?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="499" y="1595" width="170" height="70" as="geometry" />
+    </mxCell>
+
+    <!-- ADIM 5 -->
+    <mxCell id="24" value="linked_code = all_words&#xa;return True" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="459" y="1695" width="250" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- ÇIKTILAR -->
+    <mxCell id="25" value="Çıktı Seçenekleri" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0a30a;fontColor=#000000;strokeColor=#BD7000;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="409" y="1775" width="350" height="40" as="geometry" />
+    </mxCell>
+
+    <mxCell id="26" value="get_hex_output()&#xa;0xADDR: WORD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="159" y="1845" width="150" height="50" as="geometry" />
+    </mxCell>
+
+    <mxCell id="27" value="get_mem_output()&#xa;$readmemh formatı" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="359" y="1845" width="150" height="50" as="geometry" />
+    </mxCell>
+
+    <mxCell id="28" value="get_listing()&#xa;Adres+Hex+Kaynak" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="559" y="1845" width="150" height="50" as="geometry" />
+    </mxCell>
+
+    <mxCell id="29" value="get_link_map()&#xa;Sembol tablosu" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="759" y="1845" width="150" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- BİTİŞ -->
+    <mxCell id="30" value="BİTİŞ" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="509" y="1925" width="150" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- HATA ÇIKIŞI -->
+    <mxCell id="31" value="return False" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="929" y="758" width="130" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- ===== OKLAR ===== -->
+
+    <!-- BAŞLA → Girdi -->
+    <mxCell id="200" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="2" target="3" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Girdi → Reset -->
+    <mxCell id="201" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="3" target="4" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Reset → Adım1 -->
+    <mxCell id="202" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="4" target="5" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Adım1 → Text Layout -->
+    <mxCell id="203" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="5" target="6" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Adım1 → Data Layout -->
+    <mxCell id="204" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="5" target="7" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Text Layout → Adım2 -->
+    <mxCell id="205" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="6" target="8" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Data Layout → Adım2 -->
+    <mxCell id="206" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="7" target="8" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Adım2 → Global döngü -->
+    <mxCell id="207" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="8" target="9" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Global döngü → Çakışma? -->
+    <mxCell id="208" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="9" target="10" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Çakışma? → EVET → Hata -->
+    <mxCell id="209" value="Evet" style="edgeStyle=orthogonalEdgeStyle;fillColor=#f8cecc;" edge="1" source="10" target="11" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Çakışma? → HAYIR → Ekle -->
+    <mxCell id="210" value="Hayır" style="edgeStyle=orthogonalEdgeStyle;fillColor=#d5e8d4;" edge="1" source="10" target="12" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Hata → Kontrol1 -->
+    <mxCell id="211" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="11" target="13" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Ekle → Kontrol1 -->
+    <mxCell id="212" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="12" target="13" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Kontrol1 → EVET → return False -->
+    <mxCell id="213" value="Evet" style="edgeStyle=orthogonalEdgeStyle;fillColor=#f8cecc;" edge="1" source="13" target="31" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Kontrol1 → HAYIR → Adım3 -->
+    <mxCell id="214" value="Hayır" style="edgeStyle=orthogonalEdgeStyle;fillColor=#d5e8d4;" edge="1" source="13" target="14" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Adım3 → Extern kontrol -->
+    <mxCell id="215" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="14" target="15" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Extern kontrol → Bulundu? -->
+    <mxCell id="216" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="15" target="16" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Bulundu? → HAYIR → Hata2 -->
+    <mxCell id="217" value="Hayır" style="edgeStyle=orthogonalEdgeStyle;fillColor=#f8cecc;" edge="1" source="16" target="17" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Bulundu? → EVET → Kontrol2 -->
+    <mxCell id="218" value="Evet" style="edgeStyle=orthogonalEdgeStyle;fillColor=#d5e8d4;" edge="1" source="16" target="18" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Hata2 → Kontrol2 -->
+    <mxCell id="219" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="17" target="18" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Kontrol2 → EVET → return False -->
+    <mxCell id="220" value="Evet" style="edgeStyle=orthogonalEdgeStyle;fillColor=#f8cecc;" edge="1" source="18" target="31" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Kontrol2 → HAYIR → Adım4 -->
+    <mxCell id="221" value="Hayır" style="edgeStyle=orthogonalEdgeStyle;fillColor=#d5e8d4;" edge="1" source="18" target="19" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Adım4 → all_words -->
+    <mxCell id="222" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="19" target="20" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- all_words → Relocation döngü -->
+    <mxCell id="223" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="20" target="21" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Relocation döngü → patch_word -->
+    <mxCell id="224" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="21" target="22" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- patch_word → Kontrol3 -->
+    <mxCell id="225" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="22" target="23" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Kontrol3 → EVET → return False -->
+    <mxCell id="226" value="Evet" style="edgeStyle=orthogonalEdgeStyle;fillColor=#f8cecc;" edge="1" source="23" target="31" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Kontrol3 → HAYIR → linked_code -->
+    <mxCell id="227" value="Hayır" style="edgeStyle=orthogonalEdgeStyle;fillColor=#d5e8d4;" edge="1" source="23" target="24" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- linked_code → Çıktılar -->
+    <mxCell id="228" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="24" target="25" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Çıktılar → hex -->
+    <mxCell id="229" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="25" target="26" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Çıktılar → mem -->
+    <mxCell id="230" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="25" target="27" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Çıktılar → listing -->
+    <mxCell id="231" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="25" target="28" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Çıktılar → link_map -->
+    <mxCell id="232" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="25" target="29" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- hex → BİTİŞ -->
+    <mxCell id="233" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="26" target="30" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- mem → BİTİŞ -->
+    <mxCell id="234" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="27" target="30" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- listing → BİTİŞ -->
+    <mxCell id="235" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="28" target="30" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- link_map → BİTİŞ -->
+    <mxCell id="236" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="29" target="30" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+  </root>
+</mxGraphModel>
