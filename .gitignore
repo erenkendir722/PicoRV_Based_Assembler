@@ -1,3 +1,11 @@
 __pycache__/
 *.pyc
 *.pyo
+
+# Simulasyon ciktilari
+*.vcd
+loader/sim/sim.out
+loader/sim/nack.out
+
+# macOS
+.DS_Store

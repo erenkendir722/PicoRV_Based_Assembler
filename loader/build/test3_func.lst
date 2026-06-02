@@ -1,0 +1,44 @@
+Adres      Hex Kod   Kaynak
+───────────────────────────────────────────────────────
+── TEST3_FUNC ──
+0x00000000            .global MAIN
+0x00000000            .text
+0x00000000            .org 0x00000000
+0x00000000  02000337  lui   x6, 0x2000           # LED tabani
+0x00000004  030003B7  lui   x7, 0x3000           # UART tabani
+0x00000008  00A00513  addi  a0, x0, 10           # a0 = n = 10
+0x0000000C  01C000EF  jal   ra, FIB              # a0 = fib(10) = 55
+0x00000010  00A32023  sw    a0, 0(x6)            # LED <- 55
+0x00000014  0003A283  lw    t0, 0(x7)
+0x00000018  0012F293  andi  t0, t0, 1
+0x0000001C  FE029CE3  bne   t0, x0, UWAIT
+0x00000020  00A3A023  sw    a0, 0(x7)            # UART <- 55
+0x00000024  0000006F  jal   x0, HALT
+0x00000028  FEC10113  addi  sp, sp, -20          # yigin cercevesi ac (5 word)
+0x0000002C  00112823  sw    ra, 16(sp)
+0x00000030  00912623  sw    s1, 12(sp)
+0x00000034  01212423  sw    s2, 8(sp)
+0x00000038  01312223  sw    s3, 4(sp)
+0x0000003C  01412023  sw    s4, 0(sp)
+0x00000040  00A00A33  add   s4, x0, a0           # s4 = n
+0x00000044  00000913  addi  s2, x0, 0            # s2 = prev = fib(0) = 0
+0x00000048  00100993  addi  s3, x0, 1            # s3 = cur  = fib(1) = 1
+0x0000004C  00100493  addi  s1, x0, 1            # s1 = i = 1
+0x00000050  03448063  beq   s1, s4, FIBDONE      # i == n -> bitti
+0x00000054  01200533  add   a0, x0, s2           # arg0 = prev
+0x00000058  013005B3  add   a1, x0, s3           # arg1 = cur
+0x0000005C  034000EF  jal   ra, STEP             # a0 = prev + cur   (IC ICE CAGRI)
+0x00000060  01300933  add   s2, x0, s3           # prev = cur
+0x00000064  00A009B3  add   s3, x0, a0           # cur  = next
+0x00000068  00148493  addi  s1, s1, 1            # i++
+0x0000006C  FE5FF06F  jal   x0, FIBLOOP
+0x00000070  01300533  add   a0, x0, s3           # donus = cur = fib(n)
+0x00000074  01012083  lw    ra, 16(sp)
+0x00000078  00C12483  lw    s1, 12(sp)
+0x0000007C  00812903  lw    s2, 8(sp)
+0x00000080  00412983  lw    s3, 4(sp)
+0x00000084  00012A03  lw    s4, 0(sp)
+0x00000088  01410113  addi  sp, sp, 20           # yigin cercevesini kapat
+0x0000008C  00008067  jalr  x0, ra, 0            # return
+0x00000090  00B50533  add   a0, a0, a1
+0x00000094  00008067  jalr  x0, ra, 0            # return

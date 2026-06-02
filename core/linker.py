@@ -277,6 +277,55 @@ class Linker:
             prev_addr = addr
         return "\n".join(lines)
 
+    def get_bin_output(self, base_addr: int = None) -> bytes:
+        """
+        Düz (flat) ikili program imajı — Proje 3 Loader'ının host tarafına
+        gönderdiği ham .bin formatı.
+
+        linked_code içindeki 4-byte word'ler, en küçük adresten itibaren
+        little-endian olarak ardışık yazılır; aradaki boşluklar 0x00 ile
+        doldurulur. PicoRV32 little-endian olduğu için her word
+        struct '<I' (little-endian unsigned int) olarak paketlenir.
+
+        base_addr verilmezse en küçük word adresi taban kabul edilir.
+        Dönüş: ham byte dizisi (bytes).
+        """
+        words = {addr: word for addr, word, size in self.linked_code if size == 4}
+        if not words:
+            return b""
+
+        if base_addr is None:
+            base_addr = min(words)
+
+        last_addr = max(words)
+        out = bytearray()
+        addr = base_addr
+        while addr <= last_addr:
+            w = words.get(addr, 0)
+            out += bytes((w & 0xFF, (w >> 8) & 0xFF,
+                          (w >> 16) & 0xFF, (w >> 24) & 0xFF))
+            addr += 4
+        return bytes(out)
+
+    def get_words_hex(self, base_addr: int = None) -> str:
+        """
+        Her satırda bir 32-bit word (8 hane hex) — Verilog $readmemh ve
+        host/testbench tarafının kolay okuyabilmesi için düz word listesi.
+        Boşluklar 00000000 ile doldurulur (flat imaj).
+        """
+        words = {addr: word for addr, word, size in self.linked_code if size == 4}
+        if not words:
+            return ""
+        if base_addr is None:
+            base_addr = min(words)
+        last_addr = max(words)
+        lines = []
+        addr = base_addr
+        while addr <= last_addr:
+            lines.append(f"{words.get(addr, 0):08X}")
+            addr += 4
+        return "\n".join(lines)
+
     def get_link_map(self) -> str:
         """Linker map: hangi sembol hangi final adreste."""
         lines = ["Link Map",

@@ -1,0 +1,17 @@
+Adres      Hex Kod   Kaynak
+───────────────────────────────────────────────────────
+── TEST1_MATH ──
+0x00000000            .global MAIN
+0x00000000            .text
+0x00000000            .org 0x00000000
+0x00000000  02000337  lui   x6, 0x2000           # x6 = 0x02000000  (LED tabani)
+0x00000004  030003B7  lui   x7, 0x3000           # x7 = 0x03000000  (UART tabani)
+0x00000008  00600293  addi  x5,  x0, 6           # x5 = 6
+0x0000000C  00700413  addi  x8,  x0, 7           # x8 = 7
+0x00000010  008282B3  add   x5,  x5, x8          # x5 = 13   (SONUC)
+0x00000014  00532023  sw    x5, 0(x6)
+0x00000018  0003A583  lw    x11, 0(x7)           # tx durumunu oku
+0x0000001C  0015F593  andi  x11, x11, 1          # bit0 = busy
+0x00000020  FE059CE3  bne   x11, x0, UWAIT       # busy ise bekle
+0x00000024  0053A023  sw    x5, 0(x7)            # sonuc baytini (13) gonder
+0x00000028  0000006F  jal   x0, HALT             # sonsuz dongu (program bitti)
