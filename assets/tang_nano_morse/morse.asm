@@ -42,7 +42,7 @@ DELAY_DONE:
 # ── LED_ON / LED_OFF ──────────────────────────────────────────────
 LED_ON:
     lui   x14, 0x2000           # x14 = 0x02000000
-    addi  x15, x0, 1
+    addi  x15, x0, 4
     sw    x15, 0(x14)
     jalr  x0, x1, 0
 

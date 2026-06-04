@@ -27,8 +27,9 @@ MS_LOOP:
     beq   x10, x0, DELAY_DONE  # ms == 0 ise bitti
 
     # Ic dongu: 1 ms bekleme
-    addi  x11, x0, 0x1A5E      # x11 = 6750 (ic sayac)
-                                # 0x1A5E = 6750
+    # 6750 > 2047 oldugundan lui+addi ile yukle: 8192 - 1442 = 6750
+    lui   x11, 2               # x11 = 8192
+    addi  x11, x11, -1442      # x11 = 6750 (ic sayac)
 IC_LOOP:
     addi  x11, x11, -1         # sayac--
     bne   x11, x0, IC_LOOP     # != 0 ise ic dongude kal
