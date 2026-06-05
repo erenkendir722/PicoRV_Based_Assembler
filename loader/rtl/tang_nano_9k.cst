@@ -1,24 +1,8 @@
-// ════════════════════════════════════════════════════════════════════
-// tang_nano_9k.cst — Fiziksel Kisitlar (Tang Nano 9K, GW1NR-LV9QN88PC6/I5)
-// Proje 3: PicoRV32 + UART Loader
-// ════════════════════════════════════════════════════════════════════
-// NOT: UART pinleri kart revizyonuna gore degisebilir. Tang Nano 9K'da
-// onboard USB-UART (BL702) kopru pinleri tipik olarak 17/18'dir.
-// Kendi kartinizda calismazsa Sipeed semasindan dogrulayin.
-//
-//   uart_rx : FPGA'in PC'den veri ALDIGI hat   (pin 18)
-//   uart_tx : FPGA'in PC'ye veri GONDERDIGI hat (pin 17)
-// ════════════════════════════════════════════════════════════════════
-
-// ── Saat / Reset ────────────────────────────────────────────────────
-IO_LOC "clk"      52;   // 27 MHz dahili osilator — Bank 1
-IO_LOC "rst_btn"  3;    // S1 butonu (active-low)  — Bank 3
-
-// ── UART (onboard USB-UART kopru) ───────────────────────────────────
-IO_LOC "uart_rx"  18;   // host -> fpga
-IO_LOC "uart_tx"  17;   // fpga -> host
-
-// ── 6 LED (LED0..LED5, active-low) ──────────────────────────────────
+// Tang Nano 9K — Loader pin kisitlari
+IO_LOC "clk"      52;   // 27 MHz
+IO_LOC "rst_btn"   3;   // S1 butonu (active-low)
+IO_LOC "uart_rx"  18;   // UART RX
+IO_LOC "uart_tx"  17;   // UART TX
 IO_LOC "led[0]"   10;
 IO_LOC "led[1]"   11;
 IO_LOC "led[2]"   13;
@@ -26,14 +10,13 @@ IO_LOC "led[3]"   14;
 IO_LOC "led[4]"   15;
 IO_LOC "led[5]"   16;
 
-// ── IO standartlari ─────────────────────────────────────────────────
-IO_PORT "clk"      PULL_MODE=NONE IO_TYPE=LVCMOS33;
-IO_PORT "rst_btn"  PULL_MODE=UP   IO_TYPE=LVCMOS18;
-IO_PORT "uart_rx"  PULL_MODE=UP   IO_TYPE=LVCMOS33;
-IO_PORT "uart_tx"  PULL_MODE=NONE IO_TYPE=LVCMOS33;
-IO_PORT "led[0]"   PULL_MODE=NONE IO_TYPE=LVCMOS18 DRIVE=8;
-IO_PORT "led[1]"   PULL_MODE=NONE IO_TYPE=LVCMOS18 DRIVE=8;
-IO_PORT "led[2]"   PULL_MODE=NONE IO_TYPE=LVCMOS18 DRIVE=8;
-IO_PORT "led[3]"   PULL_MODE=NONE IO_TYPE=LVCMOS18 DRIVE=8;
-IO_PORT "led[4]"   PULL_MODE=NONE IO_TYPE=LVCMOS18 DRIVE=8;
-IO_PORT "led[5]"   PULL_MODE=NONE IO_TYPE=LVCMOS18 DRIVE=8;
+IO_PORT "clk"     PULL_MODE=NONE IO_TYPE=LVCMOS33;
+IO_PORT "rst_btn" PULL_MODE=UP   IO_TYPE=LVCMOS18;
+IO_PORT "uart_rx" PULL_MODE=UP   IO_TYPE=LVCMOS33;
+IO_PORT "uart_tx" PULL_MODE=NONE IO_TYPE=LVCMOS33;
+IO_PORT "led[0]"  PULL_MODE=NONE IO_TYPE=LVCMOS18 DRIVE=8;
+IO_PORT "led[1]"  PULL_MODE=NONE IO_TYPE=LVCMOS18 DRIVE=8;
+IO_PORT "led[2]"  PULL_MODE=NONE IO_TYPE=LVCMOS18 DRIVE=8;
+IO_PORT "led[3]"  PULL_MODE=NONE IO_TYPE=LVCMOS18 DRIVE=8;
+IO_PORT "led[4]"  PULL_MODE=NONE IO_TYPE=LVCMOS18 DRIVE=8;
+IO_PORT "led[5]"  PULL_MODE=NONE IO_TYPE=LVCMOS18 DRIVE=8;

@@ -87,10 +87,12 @@ class RV32IAssemblerGUI:
 
         # Sağ: Çıktı sekmeleri
         self.output = OutputTabsPanel(self.paned)
+        self.output.get_bin_data = self._get_bin_data
         self.paned.add(self.output.frame, width=380, minsize=300)
 
         # Alt: Konsol
         self.console = ConsolePanel(self.root)
+        self.output.log = self.console.log
 
     # ── Build ─────────────────────────────────────────────────────
     def _on_build(self):
@@ -416,6 +418,18 @@ class RV32IAssemblerGUI:
             lines.append(f"{word:08X}")
             prev = addr
         return "\n".join(lines)
+
+    def _get_bin_data(self) -> bytes | None:
+        if not self._linker or not self._linker.linked_code:
+            return None
+        # linked_code: [(addr, word, size), ...] — sadece 4-byte word'ler, sıralı
+        words = sorted(
+            ((addr, word) for addr, word, size in self._linker.linked_code if size == 4),
+            key=lambda x: x[0]
+        )
+        if not words:
+            return None
+        return b"".join(w.to_bytes(4, "little") for _, w in words)
 
     def _confirm_discard(self) -> bool:
         from tkinter import messagebox
