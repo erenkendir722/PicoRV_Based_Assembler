@@ -144,6 +144,15 @@ class OutputTabsPanel:
         self._flash_btn.config(state=tk.DISABLED, text="Çalışıyor…")
         threading.Thread(target=self._flash_worker, args=(port,), daemon=True).start()
 
+    def _find_bitstream(self) -> str | None:
+        """loader/rtl altinda hazir .fs bitstream'ini bulur (en yeni)."""
+        rtl = os.path.normpath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "loader", "rtl"))
+        candidates = sorted(
+            glob.glob(os.path.join(rtl, "*.fs")),
+            key=lambda p: os.path.getmtime(p), reverse=True)
+        return candidates[0] if candidates else None
+
     def _flash_worker(self, port: str):
         import subprocess, shutil
 
@@ -154,78 +163,36 @@ class OutputTabsPanel:
             self.frame.after(0, lambda: self._flash_btn.config(
                 state=tk.NORMAL, text="⚡  Loader'ı Karta Yaz"))
 
-        RTL   = os.path.join(os.path.dirname(__file__), "..", "..", "loader", "rtl")
-        RTL   = os.path.normpath(RTL)
-        WORK  = "/tmp/loader_synth"
-        FS    = os.path.join(WORK, "loader.fs")
-        CAD   = "/tmp/oss-cad-suite/bin"
-
-        yosys      = os.path.join(CAD, "yosys")     if os.path.exists(os.path.join(CAD, "yosys"))     else shutil.which("yosys")
-        nextpnr    = os.path.join(CAD, "nextpnr-gowin")
-        openfpga   = shutil.which("openFPGALoader")
-
+        openfpga = shutil.which("openFPGALoader")
         if not openfpga:
-            log("openFPGALoader bulunamadı.", "error"); done(); return
+            log("openFPGALoader bulunamadı (brew install openFPGALoader).", "error")
+            done(); return
 
-        os.makedirs(WORK, exist_ok=True)
+        fs = self._find_bitstream()
+        if not fs:
+            log("Bitstream (.fs) bulunamadı — loader/rtl altina .fs koyun "
+                "(Gowin EDA ile uretilir).", "error")
+            done(); return
 
-        verilog_files = " ".join([
-            os.path.join(RTL, f)
-            for f in ["uart_rx.v", "uart_tx.v", "loader.v", "bram_mem.v", "top_loader.v", "picorv32.v"]
-        ])
+        log(f"─── Loader bitstream karta yaziliyor ───", "info")
+        log(f"Bitstream: {os.path.basename(fs)}", "info")
 
-        # 1. Sentez
-        log("─── Loader sentezi başladı ───", "info")
-        synth_cmd = (
-            f'{yosys} -p "'
-            f'read_verilog {verilog_files}; '
-            f'synth_gowin -top top_loader -json {WORK}/loader.json'
-            f'"'
-        )
-        r = subprocess.run(synth_cmd, shell=True, capture_output=True, text=True)
-        if r.returncode != 0:
-            log("Sentez hatası:\n" + r.stderr[-800:], "error"); done(); return
-        log("Sentez OK", "success")
-
-        # 2. Place & Route
-        log("Place & Route başladı…", "info")
-        cst = os.path.join(RTL, "tang_nano_9k.cst")
-        pnr_cmd = (
-            f'{nextpnr} --json {WORK}/loader.json '
-            f'--write {WORK}/loader_pnr.json '
-            f'--device GW1NR-LV9QN88PC6/I5 '
-            f'--cst {cst}'
-        )
-        r = subprocess.run(pnr_cmd, shell=True, capture_output=True, text=True)
-        if r.returncode != 0:
-            log("P&R hatası:\n" + r.stderr[-800:], "error"); done(); return
-        log("P&R OK", "success")
-
-        # 3. Bitstream üret
-        log("Bitstream üretiliyor…", "info")
-        pack_cmd = (
-            f'{os.path.join(CAD, "gowin_pack")} '
-            f'-d GW1NR-9C '
-            f'-o {FS} '
-            f'{WORK}/loader_pnr.json'
-        )
-        r = subprocess.run(pack_cmd, shell=True, capture_output=True, text=True)
-        if r.returncode != 0:
-            log("Pack hatası:\n" + r.stderr[-800:], "error"); done(); return
-        log(f"Bitstream hazır: {FS}", "success")
-
-        # 4. Karta yaz
-        log("Karta yükleniyor…", "info")
-        flash_cmd = f'{openfpga} -b tangnano9k -m flash {FS}'
+        # Once kalici (flash), olmazsa gecici (SRAM) yukle
+        flash_cmd = f'{openfpga} -b tangnano9k -f "{fs}"'
         r = subprocess.run(flash_cmd, shell=True, capture_output=True, text=True)
+        mode = "flash (kalici)"
         if r.returncode != 0:
-            # SRAM ile de dene
-            flash_cmd = f'{openfpga} -b tangnano9k {FS}'
+            log("Flash modu basarisiz, SRAM (gecici) deneniyor…", "warning")
+            flash_cmd = f'{openfpga} -b tangnano9k "{fs}"'
             r = subprocess.run(flash_cmd, shell=True, capture_output=True, text=True)
-        if r.returncode != 0:
-            log("Karta yazma hatası:\n" + r.stderr[-400:], "error"); done(); return
+            mode = "SRAM (gecici)"
 
-        log("✓ Loader karta yüklendi! Artık ▶ FPGA'ye Yükle kullanabilirsin.", "success")
+        if r.returncode != 0:
+            log("Karta yazma hatasi:\n" + (r.stderr or r.stdout)[-500:], "error")
+            done(); return
+
+        log(f"✓ Loader karta yuklendi ({mode}). Artik ▶ FPGA'ye Yukle kullanabilirsin.",
+            "success")
         done()
 
     def _start_upload(self):
@@ -339,7 +306,10 @@ class OutputTabsPanel:
             addr  = i * 4
             pkt   = build_write(addr, chunk)
             if not send(ser, pkt):
-                log(f"FPGA: 0x{addr:08X} adresine yazılamadı. İptal.", "error")
+                log(f"FPGA: 0x{addr:08X} adresine yazılamadı (ACK yok).", "error")
+                if i == 0:
+                    log("İpucu: Kart önceki programı çalıştırıyor olabilir. "
+                        "Karttaki S1 reset butonuna basıp tekrar yükleyin.", "warning")
                 ok = False
                 break
             sent += len(chunk)

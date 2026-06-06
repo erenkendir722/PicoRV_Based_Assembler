@@ -182,12 +182,18 @@ class RV32IAssemblerGUI:
                 mem_out     = self._asm_to_mem(asm_single),
             )
             self.output.show_tab('hex')
-            if objects[0].externs:
+            # Tek dosyayi da linkle: FPGA'ye Yukle + .mem/.hex export icin gerekli
+            self._linker = None
+            if not objects[0].externs:
+                linker = Linker(text_base=script.text_base,
+                                data_base=script.data_base)
+                if linker.link([objects[0]]):
+                    self._linker = linker
+                self.console.log("✓ Assemble başarılı.", "success")
+            else:
                 self.console.log(
                     f"⚠ Çözülmemiş extern semboller: {list(objects[0].externs)}",
                     "warning")
-            else:
-                self.console.log("✓ Assemble başarılı.", "success")
             return
 
         linker = Linker(text_base=script.text_base,
