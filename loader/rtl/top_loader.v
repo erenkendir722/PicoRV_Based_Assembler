@@ -4,7 +4,10 @@
 //   0x00000000-0x00001FFF  BRAM (8 KB)
 //   0x02000000             GPIO LED (bit[5:0], aktif-dusuk)
 //   0x03000000             UART TX (yaz=gonder, oku bit0=busy)
-module top_loader (
+module top_loader #(
+    parameter CLKS_PER_BIT = 234,   // 27 MHz / 115200 = 234
+    parameter AWIDTH       = 11     // BRAM word adresi genisligi (2^11 = 2048 word = 8 KB)
+)(
     input  wire       clk,
     input  wire       rst_btn,
     input  wire       uart_rx,
@@ -19,7 +22,7 @@ module top_loader (
     // ── UART RX ──────────────────────────────────────────────────────
     wire       rx_valid;
     wire [7:0] rx_data;
-    uart_rx #(.CLKS_PER_BIT(234)) urx (
+    uart_rx #(.CLKS_PER_BIT(CLKS_PER_BIT)) urx (
         .clk(clk), .rst_n(rst_n),
         .rx(uart_rx), .valid(rx_valid), .data(rx_data)
     );
@@ -73,7 +76,7 @@ module top_loader (
 
     bram_mem bram (
         .clk(clk),
-        .a_we(mem_we), .a_addr(mem_waddr[10:0]), .a_wdata(mem_wdata_ldr),
+        .a_we(mem_we), .a_addr(mem_waddr[AWIDTH-1:0]), .a_wdata(mem_wdata_ldr),
         .b_valid(cpu_valid & bram_sel),
         .b_ready(bram_ready),
         .b_addr(mem_addr[12:2]),
@@ -115,7 +118,7 @@ module top_loader (
     end
 
     // ── UART TX mux: yükleme=loader, çalışma=CPU ─────────────────────
-    uart_tx #(.CLKS_PER_BIT(234)) utx (
+    uart_tx #(.CLKS_PER_BIT(CLKS_PER_BIT)) utx (
         .clk(clk), .rst_n(rst_n),
         .start(cpu_run ? cpu_tx_start_r : ldr_tx_start),
         .data (cpu_run ? cpu_tx_data_r  : ldr_tx_data),

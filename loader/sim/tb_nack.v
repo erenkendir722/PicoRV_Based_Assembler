@@ -4,7 +4,6 @@
 // Amac: Loader'in BOZUK bir paketi CRC ile yakalayip NACK (0x15) ile
 // reddettigini ve dogru paket tekrar gonderilince ACK (0x06) verip
 // programi sorunsuz calistirdigini kanitlamak.
-// (Proje 3 rubrigi: "Checksum/CRC ile veri kaybini kesin onleyen Loader")
 //
 //   1) WRITE paketi BOZUK CRC ile gonderilir   -> NACK beklenir
 //   2) Ayni paket DOGRU CRC ile tekrar gonderilir -> ACK beklenir
@@ -20,7 +19,7 @@ module tb_nack;
     localparam AWIDTH       = 11;
 
     reg clk = 0;
-    always #5 clk = ~clk;
+    always #5 clk = ~clk;  // 10 ns periyot
 
     reg        rst_btn = 1'b0;
     reg        uart_rx = 1'b1;
@@ -33,9 +32,9 @@ module tb_nack;
     );
 
     reg [31:0] prog [0:1023];
-    integer errors, i;
-    reg [7:0] rb;
+    integer errors;
 
+    // ── CRC-16/CCITT-FALSE ───────────────────────────────────────────────
     function [15:0] crc_next;
         input [15:0] c_in; input [7:0] d;
         reg [15:0] c; integer j;
@@ -46,26 +45,35 @@ module tb_nack;
         end
     endfunction
 
+    // BIT_T: 1 bit suresi ns cinsinden (CLKS_PER_BIT * 10ns/clk)
+    localparam BIT_T = CLKS_PER_BIT * 10;
+
+    // ── UART gonderici ───────────────────────────────────────────────────
     task uart_send;
         input [7:0] b; integer k;
         begin
-            uart_rx = 0; repeat (CLKS_PER_BIT) @(posedge clk);
-            for (k=0;k<8;k=k+1) begin uart_rx=b[k]; repeat(CLKS_PER_BIT) @(posedge clk); end
-            uart_rx = 1; repeat (CLKS_PER_BIT) @(posedge clk);
-            repeat (2) @(posedge clk);
+            uart_rx = 0; #(BIT_T);
+            for (k=0;k<8;k=k+1) begin uart_rx=b[k]; #(BIT_T); end
+            uart_rx = 1; #(BIT_T);
+            repeat(2) @(posedge clk);  // tb_loader ile ayni guard
         end
     endtask
 
+    // ── UART alici ───────────────────────────────────────────────────────
     task uart_recv;
         output [7:0] b; integer k;
         begin
             @(negedge uart_tx);
-            repeat (CLKS_PER_BIT + CLKS_PER_BIT/2) @(posedge clk);
-            for (k=0;k<8;k=k+1) begin b[k]=uart_tx; repeat(CLKS_PER_BIT) @(posedge clk); end
+            // uart_tx.v: start bit 9 clk, bit0 orta = 9 + CLKS_PER_BIT/2
+            #(BIT_T + BIT_T/2 + 5);  // 1.5 bit + kucuk marj (ns)
+            for (k=0;k<8;k=k+1) begin
+                b[k] = uart_tx;
+                #(BIT_T);
+            end
         end
     endtask
 
-    // WRITE paketi; corrupt=1 ise CRC bilerek bozulur
+    // ── WRITE paketi ─────────────────────────────────────────────────────
     task send_write;
         input [31:0] base; input integer sw; input integer cnt; input corrupt;
         integer k; reg [15:0] crc; reg [31:0] w; reg [7:0] ack;
@@ -85,7 +93,7 @@ module tb_nack;
                 uart_send(w[15:8]);    crc = crc_next(crc, w[15:8]);
                 uart_send(w[7:0]);     crc = crc_next(crc, w[7:0]);
             end
-            if (corrupt) crc = crc ^ 16'hBEEF;   // CRC'yi boz
+            if (corrupt) crc = crc ^ 16'hBEEF;
             uart_send(crc[15:8]); uart_send(crc[7:0]);
             uart_recv(ack);
             if (corrupt) begin
@@ -105,9 +113,14 @@ module tb_nack;
             uart_send(8'hAA); uart_send(8'h55); uart_send(8'h02);
             uart_send(crc[15:8]); uart_send(crc[7:0]);
             uart_recv(ack);
-            if (ack===8'h06) $display("  [OK]   RUN -> ACK"); else begin $display("  [HATA] RUN ACK yok"); errors=errors+1; end
+            if (ack===8'h06) $display("  [OK]   RUN -> ACK");
+            else begin $display("  [HATA] RUN ACK yok (0x%02x)", ack); errors=errors+1; end
         end
     endtask
+
+    // ── Ana test ─────────────────────────────────────────────────────────
+    integer i;
+    reg [7:0] rb;
 
     initial begin
         errors = 0;
@@ -119,7 +132,8 @@ module tb_nack;
         $display(" NACK / CRC HATA KONTROLU TESTI  (test1_math, sonuc=13)");
         $display("============================================================");
 
-        rst_btn=0; repeat(10) @(posedge clk); rst_btn=1; repeat(10) @(posedge clk);
+        rst_btn=0; repeat(10) @(posedge clk);
+        rst_btn=1; repeat(10) @(posedge clk);
 
         $display(" 1) Ilk paketi BOZUK CRC ile gonder:");
         send_write(32'h0, 0, 8, 1'b1);      // corrupt -> NACK
@@ -140,6 +154,6 @@ module tb_nack;
         $finish;
     end
 
-    initial begin #5000000; $display("HATA: WATCHDOG zaman asimi!"); $finish; end
+    initial begin #50_000_000; $display("HATA: WATCHDOG zaman asimi!"); $finish; end
 endmodule
 `default_nettype wire
