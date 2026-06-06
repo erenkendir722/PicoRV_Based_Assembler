@@ -53,7 +53,7 @@ module top_loader #(
     wire        mem_ready;
 
     picorv32 #(
-        .STACKADDR    (32'h00001FF0),
+        .STACKADDR    (32'h000003F0),  // 1 KB BRAM ust siniri
         .PROGADDR_RESET(32'h00000000),
         .ENABLE_MUL   (0),
         .ENABLE_DIV   (0),
@@ -69,21 +69,25 @@ module top_loader #(
         .mem_rdata(mem_rdata)
     );
 
-    // ── BRAM ─────────────────────────────────────────────────────────
-    wire bram_sel   = (mem_addr[31:13] == 19'd0);
-    wire bram_ready;
+    // ── BRAM (1 KB, tek port — loader/CPU mux) ───────────────────────
+    wire bram_sel    = (mem_addr[31:10] == 22'd0);  // 1 KB = 0x000..0x3FF
+    wire cpu_bram_ac = cpu_valid & bram_sel;
     wire [31:0] bram_rdata;
+
+    // Port mux: yukleme (cpu_run=0) loader yazar; calisma (cpu_run=1) CPU erisir
+    wire [7:0]  ram_addr = cpu_run ? mem_addr[9:2]    : mem_waddr[7:0];
+    wire [3:0]  ram_we   = cpu_run ? (cpu_bram_ac ? mem_wstrb : 4'b0)
+                                   : (mem_we ? 4'b1111 : 4'b0);
+    wire [31:0] ram_din  = cpu_run ? mem_wdata_cpu    : mem_wdata_ldr;
 
     bram_mem bram (
         .clk(clk),
-        .a_we(mem_we), .a_addr(mem_waddr[AWIDTH-1:0]), .a_wdata(mem_wdata_ldr),
-        .b_valid(cpu_valid & bram_sel),
-        .b_ready(bram_ready),
-        .b_addr(mem_addr[12:2]),
-        .b_wdata(mem_wdata_cpu),
-        .b_wstrb(mem_wstrb),
-        .b_rdata(bram_rdata)
+        .we(ram_we), .addr(ram_addr), .din(ram_din), .dout(bram_rdata)
     );
+
+    // CPU ready: erisimden 1 saat sonra (okuma verisi o an hazir)
+    reg bram_ready;
+    always @(posedge clk) bram_ready <= cpu_bram_ac;
 
     // ── GPIO @ 0x02000000 ────────────────────────────────────────────
     wire gpio_sel = (mem_addr == 32'h02000000);

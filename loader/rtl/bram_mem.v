@@ -1,35 +1,23 @@
-// bram_mem.v — Çift portlu BRAM (8 KB = 2048 x 32-bit)
-// Port A: loader yazmasi  Port B: CPU okuma/yazmasi
+// bram_mem.v — Tek portlu senkron BRAM (1 KB = 256 x 32-bit)
+// ─────────────────────────────────────────────────────────────────────
+// Gowin BSRAM (SP) icin ders-kitabi cikarim deseni: TEK yazma/okuma portu,
+// byte-enable yazma, senkron okuma. Loader ve CPU asla ayni anda erismez
+// (loader cpu_run=0 iken yazar, CPU cpu_run=1 iken erisir); bu yuzden iki
+// erisim top_loader icinde tek porta mux'lanir ve burada tek port yeter.
 module bram_mem (
     input  wire        clk,
-    // Port A — loader yazar
-    input  wire        a_we,
-    input  wire [10:0] a_addr,   // word adresi 0..2047
-    input  wire [31:0] a_wdata,
-    // Port B — CPU erisir
-    input  wire        b_valid,
-    output reg         b_ready,
-    input  wire [10:0] b_addr,
-    input  wire [31:0] b_wdata,
-    input  wire [ 3:0] b_wstrb,
-    output reg  [31:0] b_rdata
+    input  wire [ 3:0] we,      // byte yazma izinleri
+    input  wire [ 7:0] addr,    // word adresi 0..255
+    input  wire [31:0] din,
+    output reg  [31:0] dout
 );
-    reg [31:0] mem [0:2047];
+    reg [31:0] mem [0:255];
 
-    // Port A: loader yazma (öncelikli, sync)
-    always @(posedge clk)
-        if (a_we) mem[a_addr] <= a_wdata;
-
-    // Port B: CPU okuma/yazma
     always @(posedge clk) begin
-        b_ready <= 0;
-        if (b_valid) begin
-            b_ready <= 1;
-            if (b_wstrb[0]) mem[b_addr][ 7: 0] <= b_wdata[ 7: 0];
-            if (b_wstrb[1]) mem[b_addr][15: 8] <= b_wdata[15: 8];
-            if (b_wstrb[2]) mem[b_addr][23:16] <= b_wdata[23:16];
-            if (b_wstrb[3]) mem[b_addr][31:24] <= b_wdata[31:24];
-            b_rdata <= mem[b_addr];
-        end
+        if (we[0]) mem[addr][ 7: 0] <= din[ 7: 0];
+        if (we[1]) mem[addr][15: 8] <= din[15: 8];
+        if (we[2]) mem[addr][23:16] <= din[23:16];
+        if (we[3]) mem[addr][31:24] <= din[31:24];
+        dout <= mem[addr];
     end
 endmodule
