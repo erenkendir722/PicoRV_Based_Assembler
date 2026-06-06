@@ -133,7 +133,14 @@ module loader (
                     cpu_run <= 1;
                     state   <= S_RUNNING;
                 end
-                S_RUNNING: cpu_run <= 1;
+                // CPU calisirken yeni yukleme baslayabilir: host AA gonderince
+                // CPU'yu durdurup yeniden yukleme moduna gec (S1 reset gereksiz).
+                S_RUNNING:
+                    if (rx_valid && rx_data == SYNC0) begin
+                        cpu_run <= 0;        // CPU'yu reset'e al
+                        state   <= S_SYNC1;  // 0x55 bekle, yeni paket
+                    end else
+                        cpu_run <= 1;
                 default: state <= S_SYNC0;
             endcase
         end
