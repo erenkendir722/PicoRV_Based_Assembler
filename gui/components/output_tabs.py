@@ -75,6 +75,19 @@ class OutputTabsPanel:
                  highlightcolor=Theme.ACCENT
                  ).pack(side=tk.LEFT, padx=(4, 16), ipady=3)
 
+        tk.Label(inner_ctrl, text="Adres:",
+                 bg=Theme.BG4, fg=Theme.FG3,
+                 font=("Segoe UI", 9)).pack(side=tk.LEFT)
+        self._addr_var = tk.StringVar(value="0x0")
+        tk.Entry(inner_ctrl, textvariable=self._addr_var,
+                 width=10, bg=Theme.BG3, fg=Theme.FG,
+                 font=("Consolas", 9), relief=tk.FLAT, bd=0,
+                 insertbackground=Theme.ACCENT2,
+                 highlightthickness=1,
+                 highlightbackground=Theme.BORDER,
+                 highlightcolor=Theme.ACCENT
+                 ).pack(side=tk.LEFT, padx=(4, 16), ipady=3)
+
         self._upload_btn = tk.Button(
             inner_ctrl, text="▶  FPGA'ye Yükle",
             bg=Theme.ACCENT, fg="#FFFFFF",
@@ -212,12 +225,21 @@ class OutputTabsPanel:
             self.log("FPGA: Geçersiz baud değeri.", "warning")
             return
 
+        try:
+            base_addr = int(self._addr_var.get().strip(), 0)  # 0x.. / decimal
+        except ValueError:
+            self.log("FPGA: Geçersiz adres (örn 0x0, 0x100).", "warning")
+            return
+        if base_addr & 0x3:
+            self.log("FPGA: Adres 4'ün katı olmalı (word hizalı).", "warning")
+            return
+
         self._upload_btn.config(state=tk.DISABLED, text="Yükleniyor…")
         threading.Thread(target=self._upload_worker,
-                         args=(port, baud, bin_data),
+                         args=(port, baud, bin_data, base_addr),
                          daemon=True).start()
 
-    def _upload_worker(self, port: str, baud: int, bin_data: bytes):
+    def _upload_worker(self, port: str, baud: int, bin_data: bytes, base_addr: int = 0):
         def log(msg, tag="info"):
             self.frame.after(0, lambda: self.log(msg, tag))
 
@@ -287,7 +309,7 @@ class OutputTabsPanel:
         words = [int.from_bytes(data[i:i+4], "little") for i in range(0, len(data), 4)]
 
         log(f"─── FPGA yükleme başladı → {port} @ {baud} ───", "info")
-        log(f"Program: {len(words)} word / {len(words)*4} byte", "info")
+        log(f"Program: {len(words)} word / {len(words)*4} byte  →  baz adres 0x{base_addr:08X}", "info")
 
         try:
             ser = serial.Serial(port, baud, timeout=0.1)
@@ -303,7 +325,7 @@ class OutputTabsPanel:
         ok = True
         for i in range(0, len(words), CHUNK):
             chunk = words[i:i + CHUNK]
-            addr  = i * 4
+            addr  = base_addr + i * 4
             pkt   = build_write(addr, chunk)
             if not send(ser, pkt):
                 log(f"FPGA: 0x{addr:08X} adresine yazılamadı (ACK yok).", "error")
@@ -316,6 +338,9 @@ class OutputTabsPanel:
             log(f"  WRITE @0x{addr:08X}  {len(chunk):>3} word → ACK  ({sent}/{len(words)})", "success")
 
         if ok:
+            if base_addr != 0:
+                log("Not: CPU her zaman PC=0x0'dan başlar. Programınız 0x0'da "
+                    "değilse 0x0'a bir atlama (jump) komutu koyun.", "warning")
             if send(ser, build_run()):
                 log("RUN → ACK  ✓  CPU çalışmaya başladı (PC=0x0)", "success")
             else:
