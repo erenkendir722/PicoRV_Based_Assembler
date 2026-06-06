@@ -166,6 +166,33 @@ class OutputTabsPanel:
             key=lambda p: os.path.getmtime(p), reverse=True)
         return candidates[0] if candidates else None
 
+    @staticmethod
+    def _find_gowin_programmer() -> str | None:
+        """Gowin EDA programmer_cli'sini PATH'te ve yaygin kurulum yollarinda arar."""
+        import shutil
+        exe = "programmer_cli.exe" if sys.platform.startswith("win") else "programmer_cli"
+        found = shutil.which(exe) or shutil.which("programmer_cli")
+        if found:
+            return found
+        # Yaygin Gowin kurulum yollari
+        patterns = []
+        if sys.platform.startswith("win"):
+            patterns = [
+                r"C:\Gowin\*\Programmer\bin\programmer_cli.exe",
+                r"C:\Gowin\*\IDE\bin\programmer_cli.exe",
+                r"C:\Program Files\Gowin\*\Programmer\bin\programmer_cli.exe",
+            ]
+        elif sys.platform == "darwin":
+            patterns = ["/Applications/Gowin*/Programmer/bin/programmer_cli"]
+        else:
+            patterns = [os.path.expanduser("~/Gowin*/Programmer/bin/programmer_cli"),
+                        "/opt/Gowin*/Programmer/bin/programmer_cli"]
+        for pat in patterns:
+            hits = sorted(glob.glob(pat), reverse=True)
+            if hits:
+                return hits[0]
+        return None
+
     def _flash_worker(self, port: str):
         import subprocess, shutil
 
@@ -176,29 +203,39 @@ class OutputTabsPanel:
             self.frame.after(0, lambda: self._flash_btn.config(
                 state=tk.NORMAL, text="⚡  Loader'ı Karta Yaz"))
 
-        openfpga = shutil.which("openFPGALoader")
-        if not openfpga:
-            log("openFPGALoader bulunamadı (brew install openFPGALoader).", "error")
-            done(); return
-
         fs = self._find_bitstream()
         if not fs:
             log("Bitstream (.fs) bulunamadı — loader/rtl altina .fs koyun "
                 "(Gowin EDA ile uretilir).", "error")
             done(); return
 
-        log(f"─── Loader bitstream karta yaziliyor ───", "info")
+        log("─── Loader bitstream karta yaziliyor ───", "info")
         log(f"Bitstream: {os.path.basename(fs)}", "info")
 
-        # Once kalici (flash), olmazsa gecici (SRAM) yukle
-        flash_cmd = f'{openfpga} -b tangnano9k -f "{fs}"'
-        r = subprocess.run(flash_cmd, shell=True, capture_output=True, text=True)
-        mode = "flash (kalici)"
-        if r.returncode != 0:
-            log("Flash modu basarisiz, SRAM (gecici) deneniyor…", "warning")
-            flash_cmd = f'{openfpga} -b tangnano9k "{fs}"'
-            r = subprocess.run(flash_cmd, shell=True, capture_output=True, text=True)
+        openfpga = shutil.which("openFPGALoader")
+        gowin    = self._find_gowin_programmer()
+
+        if openfpga:
+            log("Arac: openFPGALoader", "info")
+            # Once kalici (flash), olmazsa gecici (SRAM)
+            r = subprocess.run(f'"{openfpga}" -b tangnano9k -f "{fs}"',
+                               shell=True, capture_output=True, text=True)
+            mode = "flash (kalici)"
+            if r.returncode != 0:
+                log("Flash modu basarisiz, SRAM (gecici) deneniyor…", "warning")
+                r = subprocess.run(f'"{openfpga}" -b tangnano9k "{fs}"',
+                                   shell=True, capture_output=True, text=True)
+                mode = "SRAM (gecici)"
+        elif gowin:
+            log(f"Arac: Gowin programmer_cli", "info")
+            # --run 2 = SRAM Program (gecici, en guvenli/hizli)
+            cmd = (f'"{gowin}" --device GW1NR-9C --run 2 --fsFile "{fs}"')
+            r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
             mode = "SRAM (gecici)"
+        else:
+            log("Karta yazma araci bulunamadi: openFPGALoader veya Gowin "
+                "programmer_cli gerekli (Gowin EDA kuruluysa PATH'e ekleyin).", "error")
+            done(); return
 
         if r.returncode != 0:
             log("Karta yazma hatasi:\n" + (r.stderr or r.stdout)[-500:], "error")
@@ -352,56 +389,71 @@ class OutputTabsPanel:
 
     # ── Port tarama ───────────────────────────────────────────────────
 
+    # Bluetooth / sanal seri portlari elemek icin imzalar
+    _BT_MARKERS = ("BTHENUM", "BLUETOOTH", "BTHMODEM", "RFCOMM")
+
+    @staticmethod
+    def _is_bluetooth(device: str, desc: str, hwid: str) -> bool:
+        blob = f"{device} {desc} {hwid}".upper()
+        return any(m in blob for m in OutputTabsPanel._BT_MARKERS)
+
     @staticmethod
     def _scan_ports() -> list[tuple[str, str]]:
-        results = []
-
-        if sys.platform.startswith("win"):
-            try:
-                import winreg
-                key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
-                                     r"HARDWARE\DEVICEMAP\SERIALCOMM")
-                i = 0
-                while True:
-                    try:
-                        _, val, _ = winreg.EnumValue(key, i)
-                        results.append((val, ""))
-                        i += 1
-                    except OSError:
-                        break
-            except Exception:
-                pass
-        else:
-            patterns = ["/dev/tty.usbserial-*", "/dev/tty.usbmodem*",
-                        "/dev/ttyUSB*", "/dev/ttyACM*"]
-            seen: set[str] = set()
-            for pat in patterns:
-                for path in sorted(glob.glob(pat)):
-                    if path in seen:
-                        continue
-                    seen.add(path)
-                    name = os.path.basename(path)
-                    if "usbserial" in name:
-                        desc = "USB-Serial (FTDI / Tang Nano)"
-                    elif "usbmodem" in name:
-                        desc = "USB Modem"
-                    elif "ttyUSB" in name:
-                        desc = "USB-Serial"
-                    elif "ttyACM" in name:
-                        desc = "USB CDC/ACM"
-                    else:
-                        desc = ""
-                    results.append((path, desc))
-
         try:
             from serial.tools import list_ports
-            serial_map = {p.device: p.description for p in list_ports.comports()}
-            enriched = []
-            for port, desc in results:
-                enriched.append((port, serial_map.get(port, desc) or desc))
-            return enriched
         except ImportError:
-            return results
+            return OutputTabsPanel._scan_ports_fallback()
+
+        usb_ports, other_ports = [], []
+        for p in list_ports.comports():
+            device = p.device or ""
+            desc   = p.description or ""
+            hwid   = p.hwid or ""
+
+            # Bluetooth ve sanal portlari atla
+            if OutputTabsPanel._is_bluetooth(device, desc, hwid):
+                continue
+
+            hw = hwid.upper()
+            is_ftdi = ("0403:6010" in hw or "0403:6011" in hw or "FTDI" in hw
+                       or "USBSERIAL" in device.upper())
+            if is_ftdi:
+                label = f"{desc or 'USB-Serial'}  (FTDI / Tang Nano)"
+                usb_ports.append((device, label))
+            elif "USB" in hw or "ACM" in device.upper():
+                other_ports.append((device, desc or "USB-Serial"))
+            else:
+                # VID/PID yok: çoğu zaman sanal/yerleşik port — yine de göster
+                other_ports.append((device, desc or ""))
+
+        # FTDI/Tang Nano portlari once
+        return usb_ports + other_ports
+
+    @staticmethod
+    def _scan_ports_fallback() -> list[tuple[str, str]]:
+        """pyserial yoksa: macOS/Linux icin glob (Bluetooth haric)."""
+        results = []
+        patterns = ["/dev/tty.usbserial-*", "/dev/tty.usbmodem*",
+                    "/dev/ttyUSB*", "/dev/ttyACM*"]
+        seen: set[str] = set()
+        for pat in patterns:
+            for path in sorted(glob.glob(pat)):
+                if path in seen or "luetooth" in path:
+                    continue
+                seen.add(path)
+                name = os.path.basename(path)
+                if "usbserial" in name:
+                    desc = "USB-Serial (FTDI / Tang Nano)"
+                elif "usbmodem" in name:
+                    desc = "USB Modem"
+                elif "ttyUSB" in name:
+                    desc = "USB-Serial"
+                elif "ttyACM" in name:
+                    desc = "USB CDC/ACM"
+                else:
+                    desc = ""
+                results.append((path, desc))
+        return results
 
     # ── Metin sekmeleri ───────────────────────────────────────────────
 
